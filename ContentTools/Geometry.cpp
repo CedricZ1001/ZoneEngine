@@ -348,6 +348,8 @@ void packData(const Scene& scene, SceneData& data)
 		}
 	}
 
+	assert(at == sceneSize);
+
 }
 
 }

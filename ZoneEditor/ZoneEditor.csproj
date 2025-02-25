@@ -26,8 +26,7 @@
     <None Remove="Resource\ZoneIcon.ico" />
   </ItemGroup>
 
-  <ItemGroup>
-  </ItemGroup>
+
 
 
 
@@ -51,6 +50,9 @@
       <EmbedInteropTypes>true</EmbedInteropTypes>
     </COMReference>
   </ItemGroup>
+
+
+
 
 
 

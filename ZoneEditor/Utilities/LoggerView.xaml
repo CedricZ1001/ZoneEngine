@@ -88,11 +88,8 @@
             </ItemsControl>
         </ScrollViewer>
         <Border Height="32" VerticalAlignment="Top" Background="{StaticResource Editor.Window.GrayBrush3}">
-            <Border.Effect>
-                <DropShadowEffect Opacity="0.3" BlurRadius="10" ShadowDepth="0"/>
-            </Border.Effect>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,0" VerticalAlignment="Center">
-                <Button Content="Clear" Margin="1,0" Click="OnClear_Button_Click" Focusable="False"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,0,1,1" VerticalAlignment="Center" Height="20">
+                <Button Content="Clear" Margin="1,0,2,0" Click="OnClear_Button_Click"  Focusable="False"/>
                 <ToggleButton IsChecked="True" Content="info" Margin="1,0" ToolTip="Toggle information message"
                               x:Name="toggleInfo" Background="{StaticResource Editor.GreenBrush}"/>
                 <ToggleButton IsChecked="True" Content="warn" Margin="1,0" ToolTip="Toggle warning message"

@@ -7,6 +7,9 @@
     </ApplicationDefinition>
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="Content\PrimitiveMeshDialog.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="Editors\WorldEditor\ComponentView.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -51,6 +54,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Page Update="Content\PrimitiveMeshDialog.xaml">
+      <SubType>Designer</SubType>
+    </Page>
     <Page Update="Dictionaries\ControlTemplates.xaml">
       <SubType>Designer</SubType>
     </Page>
