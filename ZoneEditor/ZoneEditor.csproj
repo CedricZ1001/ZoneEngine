@@ -26,6 +26,11 @@
     <None Remove="Resource\ZoneIcon.ico" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="Editors\GeometryEditor\GeometryEditor.cs" />
+    <Compile Include="Editors\IAssetEditor.cs" />
+  </ItemGroup>
+
 
 
 
