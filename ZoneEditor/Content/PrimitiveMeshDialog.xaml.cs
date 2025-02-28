@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using ZoneEditor.ContentToolsAPIStructs;
 using ZoneEditor.DllWrappers;
+using ZoneEditor.Editors;
 using ZoneEditor.Utilities.Controls;
 
 namespace ZoneEditor.Content
@@ -71,6 +72,7 @@ namespace ZoneEditor.Content
 
             var geometry = new Geometry();
             ContentToolsAPI.CreatePrimitiveMesh(geometry, info);
+            (DataContext as GeometryEditor).SetAsset(geometry);
         }
 
 

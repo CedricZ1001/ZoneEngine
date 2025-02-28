@@ -31,9 +31,9 @@ struct Vertex
 struct Mesh
 {
 	//initial data
-	utl::vector<math::Vec4F>					tangents;
 	utl::vector<math::Vec3F>					positions;
 	utl::vector<math::Vec3F>					normals;
+	utl::vector<math::Vec4F>					tangents;
 	utl::vector<utl::vector<math::Vec2F>>		uvSets;
 	utl::vector<uint32>							rawIndices;
 
