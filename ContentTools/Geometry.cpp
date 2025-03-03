@@ -12,7 +12,7 @@ using namespace DirectX;
 void recalculateNormals(Mesh& mesh)
 {
 	const uint32 numIndices{ static_cast<uint32>(mesh.rawIndices.size()) };
-	mesh.normals.reserve(numIndices);
+	mesh.normals.resize(numIndices);
 
 	for (uint32 i{ 0 }; i < numIndices; ++i)
 	{

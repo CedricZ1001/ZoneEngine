@@ -10,6 +10,9 @@
     <Compile Update="Content\PrimitiveMeshDialog.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="Editors\GeometryEditor\GeometryView.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="Editors\WorldEditor\ComponentView.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -61,6 +64,9 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Update="Dictionaries\EditorColors.xaml">
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Update="Editors\GeometryEditor\GeometryView.xaml">
       <SubType>Designer</SubType>
     </Page>
     <Page Update="Editors\WorldEditor\ComponentView.xaml">

@@ -138,4 +138,5 @@ EDITOR_INTERFACE void CreatePrimitiveMesh(SceneData* data, PrimitiveInitInfo* in
 	packData(scene, *data);
 }
 
+
 }

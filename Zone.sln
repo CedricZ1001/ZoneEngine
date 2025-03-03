@@ -18,6 +18,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EngineDLL", "EngineDLL\Engi
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ContentTools", "ContentTools\ContentTools.vcxproj", "{6850402F-B6FA-462C-B067-58B7F83B4FE2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CC266EB5-944E-4AE9-8953-47AE53E507BB} = {CC266EB5-944E-4AE9-8953-47AE53E507BB}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

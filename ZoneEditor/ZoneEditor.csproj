@@ -16,15 +16,19 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugEditor|x64'">
     <Optimize>False</Optimize>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseEditor|x64'">
     <Optimize>True</Optimize>
+    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Resource\ZoneIcon.ico" />
   </ItemGroup>
+
+
 
 
 

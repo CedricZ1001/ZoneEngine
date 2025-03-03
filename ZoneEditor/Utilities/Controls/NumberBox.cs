@@ -72,7 +72,7 @@ namespace ZoneEditor.Utilities.Controls
                     else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) _multiplier = 0.1;
                     else _multiplier = 0.01;
                     var newValue = _originalValue + (dis * _multiplier * Multiplier);
-                    Value = newValue.ToString("F2");
+                    Value = newValue.ToString("G5");
                     _valueChanged = true;
                 }
             }

@@ -43,7 +43,7 @@ namespace ZoneEditor.Content
         {
             if (!IsInitialized) return;
 
-            var primitiveMeshType =(PrimitiveMeshType)PrimitiveMeshTypeComboBox.SelectedIndex;
+            var primitiveMeshType =(PrimitiveMeshType)PrimitiveMeshTypeComboBox.SelectedItem;
             var info = new PrimitiveInitInfo() { Type = primitiveMeshType };
 
             switch (primitiveMeshType)
