@@ -80,6 +80,7 @@ namespace ZoneEditor.Editors
                 if (_cameraPosition != value)
                 {
                     _cameraPosition = value;
+                    CameraDirection = new Vector3D(-value.X, -value.Y, -value.Z);
                     OnPropertyChanged(nameof(OffsetCameraPosition));
                     OnPropertyChanged(nameof(CameraPosition));
                 }
@@ -87,7 +88,7 @@ namespace ZoneEditor.Editors
         }
 
 
-        private Point3D _cameraTarget;
+        private Point3D _cameraTarget = new Point3D(0, 0, 0);
         public Point3D CameraTarget
         {
             get => _cameraTarget;
@@ -171,16 +172,18 @@ namespace ZoneEditor.Editors
 
             var offset = lod.Meshes[0].VertexSize - 3 * sizeof(float) - sizeof(int) - 2 * sizeof(short);
 
-            double minX, minY, minZ, maxX, maxY, maxZ;
-            minX = minY = minZ = double.MaxValue;
-            maxX = maxY = maxZ = double.MinValue;
+            // In order to set up camera position and target properly, we need to figure out how big
+            // this object is that we're rendering. Hence, we need to know its bounding box.
+            double minX, minY, minZ; minX = minY = minZ = double.MaxValue;
+            double maxX, maxY, maxZ; maxX = maxY = maxZ = double.MinValue;
             Vector3D avgNormal = new Vector3D();
-
+            // unpack the packed normals
             var intervals = 2.0f / ((1 << 16) - 1);
 
             foreach (var mesh in lod.Meshes)
             {
                 var vertexData = new MeshRendererVertexData();
+                // Unpack all vertices
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Vertices)))
                     for (int i = 0; i < mesh.VertexCount; ++i)
                     {
@@ -190,16 +193,13 @@ namespace ZoneEditor.Editors
                         var signs = (reader.ReadUInt32() >> 24) & 0x000000ff;
                         vertexData.Positions.Add(new Point3D(posX, posY, posZ));
 
-                        minX = Math.Min(minX, posX);
-                        minY = Math.Min(minY, posY);
-                        minZ = Math.Min(minZ, posZ);
-                        maxX = Math.Max(maxX, posX);
-                        maxY = Math.Max(maxY, posY);
-                        maxZ = Math.Max(maxZ, posZ);
+                        minX = Math.Min(minX, posX); maxX = Math.Max(maxX, posX);
+                        minY = Math.Min(minY, posY); maxY = Math.Max(maxY, posY);
+                        minZ = Math.Min(minZ, posZ); maxZ = Math.Max(maxZ, posZ);
 
                         var nrmX = reader.ReadUInt16() * intervals - 1.0f;
                         var nrmY = reader.ReadUInt16() * intervals - 1.0f;
-                        var nrmZ = Math.Sqrt(Math.Clamp((1.0f - nrmX * nrmX - nrmY * nrmY), 0.0f, 1.0f)) * ((signs & 0x2) - 1.0f);
+                        var nrmZ = Math.Sqrt(Math.Clamp((1.0f - (nrmX * nrmX + nrmY * nrmY)), 0.0f, 1.0f)) * ((signs & 0x2) - 1.0f);
                         var normal = new Vector3D(nrmX, nrmY, nrmZ);
                         normal.Normalize();
                         vertexData.Normals.Add(normal);
@@ -214,11 +214,9 @@ namespace ZoneEditor.Editors
 
                 using (var reader = new BinaryReader(new MemoryStream(mesh.Indices)))
                     if (mesh.IndexSize == sizeof(short))
-                        for (int i = 0; i < mesh.IndexCount; ++i)
-                            vertexData.Indices.Add(reader.ReadUInt16());
+                        for (int i = 0; i < mesh.IndexCount; ++i) vertexData.Indices.Add(reader.ReadUInt16());
                     else
-                        for (int i = 0; i < mesh.IndexCount; ++i)
-                            vertexData.Indices.Add(reader.ReadInt32());
+                        for (int i = 0; i < mesh.IndexCount; ++i) vertexData.Indices.Add(reader.ReadInt32());
 
                 vertexData.Positions.Freeze();
                 vertexData.Normals.Freeze();
@@ -240,7 +238,7 @@ namespace ZoneEditor.Editors
                 var width = maxX - minX;
                 var height = maxY - minY;
                 var depth = maxZ - minZ;
-                var radius = new Vector3D(width, height, depth).Length / 1.2;
+                var radius = new Vector3D(width, height, depth).Length * 1.2;
                 if (avgNormal.Length > 0.8)
                 {
                     avgNormal.Normalize();

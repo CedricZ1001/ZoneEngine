@@ -152,8 +152,8 @@ namespace ZoneEditor.Content
 
             using var reader = new BinaryReader(new MemoryStream(data));
             // skip scene name string
-            var s = reader.ReadInt32();
-            reader.BaseStream.Position += s;
+            var save = reader.ReadInt32();
+            reader.BaseStream.Position += save;
             // get number of LODs
             var numLODGroups = reader.ReadInt32();
             Debug.Assert(numLODGroups > 0);
@@ -161,11 +161,11 @@ namespace ZoneEditor.Content
             for (int i = 0; i < numLODGroups; ++i)
             {
                 // get LOD group's name
-                s = reader.ReadInt32();
+                save = reader.ReadInt32();
                 string lodGroupName;
-                if (s > 0)
+                if (save > 0)
                 {
-                    var nameBytes = reader.ReadBytes(s);
+                    var nameBytes = reader.ReadBytes(save);
                     lodGroupName = Encoding.UTF8.GetString(nameBytes);
                 }
                 else
@@ -176,7 +176,7 @@ namespace ZoneEditor.Content
                 //get number of meshes in this LOD group
                 var numMeshes = reader.ReadInt32();
                 Debug.Assert(numMeshes > 0);
-                List<MeshLOD> lods = ReadMeshLODs(numMeshes, reader);
+                var lods = ReadMeshLODs(numMeshes, reader);
 
                 var lodGroup = new LODGroup() { Name = lodGroupName };
                 lods.ForEach(l => lodGroup.LODs.Add(l));
@@ -190,7 +190,7 @@ namespace ZoneEditor.Content
             var lodIds = new List<int>();
             var lodList = new List<MeshLOD>();
             for (int i = 0; i < numMeshes; ++i) 
-            { 
+            {
                 ReadMeshes(reader, lodIds, lodList);
             }
 
@@ -200,11 +200,11 @@ namespace ZoneEditor.Content
         private static void ReadMeshes(BinaryReader reader, List<int> lodIds, List<MeshLOD> lodList)
         {
             // get mesh's name
-            var s = reader.ReadInt32();
+            var save = reader.ReadInt32();
             string meshName;
-            if (s > 0)
+            if (save > 0)
             {
-                var nameBytes = reader.ReadBytes(s);
+                var nameBytes = reader.ReadBytes(save);
                 meshName = Encoding.UTF8.GetString(nameBytes);
             }
             else
@@ -239,6 +239,8 @@ namespace ZoneEditor.Content
                 lod = new MeshLOD() { Name = meshName, LodThreshold = lodThreshold };
                 lodList.Add(lod);
             }
+
+            lod.Meshes.Add(mesh);
 
         }
         public Geometry() : base(AssetType.Mesh) { }

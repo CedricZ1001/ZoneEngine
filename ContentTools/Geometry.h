@@ -10,7 +10,7 @@ namespace packedvertex {
 
 struct VertexStatic
 {
-	math::Vec3F		position;
+	math::Vec3F		position{};
 	uint8			reserved[3];
 	uint8			tSign;
 	uint16			normal[2];
@@ -57,7 +57,7 @@ struct LodGroup
 struct Scene 
 {
 	std::string name;
-	std::vector<LodGroup> LodGroups;
+	std::vector<LodGroup> lodGroups;
 };
 
 struct GeometryImportSettings
@@ -73,7 +73,7 @@ struct GeometryImportSettings
 struct SceneData
 {
 	uint8*					buffer;
-	uint8					bufferSize;
+	uint32					bufferSize;
 	GeometryImportSettings	settings;
 };
 

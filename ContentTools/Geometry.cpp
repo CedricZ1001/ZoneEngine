@@ -145,10 +145,10 @@ void packVerticesStatic(Mesh& mesh)
 	{
 		Vertex& v{ mesh.vertices[i] };
 		const uint8 signs{ static_cast<uint8>((v.normal.z > 0.0f) << 1) };
-		const uint16 normalX{ static_cast<uint16>(packFloat<16>(v.tangent.x , -1.0f, 1.0f)) };
-		const uint16 normalY{ static_cast<uint16>(packFloat<16>(v.tangent.y , -1.0f, 1.0f)) };
+		const uint16 normalX{ static_cast<uint16>(packFloat<16>(v.normal.x , -1.0f, 1.0f)) };
+		const uint16 normalY{ static_cast<uint16>(packFloat<16>(v.normal.y , -1.0f, 1.0f)) };
 
-		mesh.packedVerticesStatic.emplace_back(packedvertex::VertexStatic{ v.position,{0, 0, 0},signs,{normalX,normalY},{},v.uv });
+		mesh.packedVerticesStatic.emplace_back(packedvertex::VertexStatic{ v.position, {0, 0, 0}, signs, {normalX,normalY}, {}, v.uv });
 	}
 }
 
@@ -174,18 +174,18 @@ uint64 getMeshSize(const Mesh& mesh)
 	const uint64 numVertices{ mesh.vertices.size() };
 	const uint64 vertexBufferSize{ sizeof(packedvertex::VertexStatic) * numVertices };
 	const uint64 indexSize{ (numVertices < (1 << 16)) ? sizeof(uint16) : sizeof(uint32) };
-	const uint64 indexBufferSize{ sizeof(uint32) * mesh.indices.size() };
-	constexpr uint64 su32{ sizeof(uint32) };
+	const uint64 indexBufferSize{ indexSize * mesh.indices.size() };
+	constexpr uint64 saveUint32{ sizeof(uint32) };
 	const uint64 size{
-		su32 + mesh.name.size() +		// Mesh name length
-		su32 +							// lod id
-		su32 +							// vertex buffer size
-		su32 +							// number of vertices
-		su32 +							// index buffer size (16 bit or 32 bit)
-		su32 +							// number of indices
-		sizeof(float) +					// LOD threshold
-		vertexBufferSize +				// vertex buffer
-		indexBufferSize					// index buffer
+		saveUint32 + mesh.name.size() +			// Mesh name length
+		saveUint32 +							// lod id
+		saveUint32 +							// vertex buffer size
+		saveUint32 +							// number of vertices
+		saveUint32 +							// index buffer size (16 bit or 32 bit)
+		saveUint32 +							// number of indices
+		sizeof(float) +							// LOD threshold
+		vertexBufferSize +						// vertex buffer
+		indexBufferSize							// index buffer
 	};
 
 	return size;
@@ -193,23 +193,23 @@ uint64 getMeshSize(const Mesh& mesh)
 
 uint64 getSceneSize(const Scene& scene)
 {
-	constexpr uint64 su32{ sizeof(uint32) };
+	constexpr uint64 saveUint32{ sizeof(uint32) };
 	uint64 size
 	{
-		su32 +				 // Scene name length
+		saveUint32 +				 // Scene name length
 		scene.name.size() +  // room for scene name string
-		su32				 // number of LOD groups
+		saveUint32				 // number of LOD groups
 	};
 
-	for (auto& lod : scene.LodGroups)
+	for (auto& lodGroup : scene.lodGroups)
 	{
 		uint64 lodSize
 		{
-			su32 + lod.name.size() + // LOD name length
-			su32					 // number of meshes in LOD
+			saveUint32 + lodGroup.name.size() + // LOD name length
+			saveUint32					 // number of meshes in LOD
 		};
 
-		for (auto& mesh : lod.meshes)
+		for (auto& mesh : lodGroup.meshes)
 		{
 			lodSize += getMeshSize(mesh);
 		}
@@ -223,56 +223,47 @@ uint64 getSceneSize(const Scene& scene)
 
 void packMeshData(const Mesh& mesh, uint8* const buffer, uint64& at)
 {
-	constexpr uint64 su32{ sizeof(uint32) };
-	uint32 s{ 0 };
+	constexpr uint64 saveUint32{ sizeof(uint32) };
+	uint32 save{ 0 };
 
 	// mesh name
-	s = static_cast<uint32>(mesh.name.size());
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
-	memcpy(&buffer[at], mesh.name.c_str(), s);
-	at += s;
+	save = static_cast<uint32>(mesh.name.size());
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
+	memcpy(&buffer[at], mesh.name.c_str(), save); at += save;
 
 	// lod id
-	s = mesh.lodID;
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = mesh.lodID;
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
 	// vertex size
 	constexpr uint32 vertexSize{ sizeof(packedvertex::VertexStatic) };
-	s = vertexSize;
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = vertexSize;
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
 	// number of vertices
 	const uint32 numVertices{ static_cast<uint32>(mesh.vertices.size()) };
-	s = numVertices;
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = numVertices;
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
 	// index size (16 bit or 32 bit)
 	const uint32 indexSize{ (numVertices < (1 << 16)) ? sizeof(uint16) : sizeof(uint32) };
-	s = indexSize;
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = indexSize;
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
 	// number of indices
 	const uint32 numIndices{ static_cast<uint32>(mesh.indices.size()) };
-	s = numIndices;
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = numIndices;
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
 	// LOD threshold
-	memcpy(&buffer[at], &mesh.lodThreshold, sizeof(float));
-	at += sizeof(float);
+	memcpy(&buffer[at], &mesh.lodThreshold, sizeof(float)); at += sizeof(float);
 
 	// vertex data
-	s = vertexSize * numVertices;
-	memcpy(&buffer[at], mesh.packedVerticesStatic.data(), s);
-	at += s;
+	save = vertexSize * numVertices;
+	memcpy(&buffer[at], mesh.packedVerticesStatic.data(), save); at += save;
 
 	//index data 
-	s = indexSize * numIndices;
+	save = indexSize * numIndices;
 	void* data{ (void*)mesh.indices.data() };
 	utl::vector<uint16> indices;
 
@@ -285,8 +276,7 @@ void packMeshData(const Mesh& mesh, uint8* const buffer, uint64& at)
 		}
 		data = (void*)indices.data();
 	}
-	memcpy(&buffer[at], data, s);
-	at += s;
+	memcpy(&buffer[at], data, save); at += save;
 }
 
 
@@ -294,9 +284,9 @@ void packMeshData(const Mesh& mesh, uint8* const buffer, uint64& at)
 
 void processScene(Scene& scene, const GeometryImportSettings& settings)
 {
-	for (auto& lod : scene.LodGroups)
+	for (auto& lodGroup : scene.lodGroups)
 	{
-		for (auto& mesh : lod.meshes)
+		for (auto& mesh : lodGroup.meshes)
 		{
 			processVertices(mesh, settings);
 		}
@@ -306,43 +296,37 @@ void processScene(Scene& scene, const GeometryImportSettings& settings)
 
 void packData(const Scene& scene, SceneData& data)
 {
-	constexpr uint64 su32{ sizeof(uint64) };
+	constexpr uint64 saveUint32{ sizeof(uint32) };
 	const uint64 sceneSize{ getSceneSize(scene) };
-	data.bufferSize = static_cast<uint8>(sceneSize);
+	data.bufferSize = static_cast<uint32>(sceneSize);
 	data.buffer = static_cast<uint8*>(CoTaskMemAlloc(sceneSize));
 	assert(data.buffer);
 
 	uint8* const buffer{ data.buffer };
 	uint64 at{ 0 };
-	uint32 s{ 0 };
+	uint32 save{ 0 };
 
 	// scene name
-	s = static_cast<uint32>(scene.name.size());
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
-	memcpy(&buffer[at], scene.name.c_str(), s); 
-	at += s;
+	save = static_cast<uint32>(scene.name.size());
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
+	memcpy(&buffer[at], scene.name.c_str(), save); at += save;
 
 	// number of LODs
-	s = static_cast<uint32>(scene.LodGroups.size());
-	memcpy(&buffer[at], &s, su32);
-	at += su32;
+	save = static_cast<uint32>(scene.lodGroups.size());
+	memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
-	for (auto& lod : scene.LodGroups)
+	for (auto& lodGroup : scene.lodGroups)
 	{
 		// LOD name
-		s = static_cast<uint32>(lod.name.size());
-		memcpy(&buffer[at], &s, su32);
-		at += su32;
-		memcpy(&buffer[at], lod.name.c_str(), s);
-		at += s;
+		save = static_cast<uint32>(lodGroup.name.size());
+		memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
+		memcpy(&buffer[at], lodGroup.name.c_str(), save); at += save;
 
 		//number of meshes in this LOD
-		s = static_cast<uint32>(lod.meshes.size());
-		memcpy(&buffer[at], &s, su32);
-		at += su32;
+		save = static_cast<uint32>(lodGroup.meshes.size());
+		memcpy(&buffer[at], &save, saveUint32); at += saveUint32;
 
-		for (auto& mesh : lod.meshes)
+		for (auto& mesh : lodGroup.meshes)
 		{
 			packMeshData(mesh, buffer, at);
 		}

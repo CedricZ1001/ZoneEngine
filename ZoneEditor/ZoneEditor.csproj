@@ -28,11 +28,9 @@
     <None Remove="Resource\ZoneIcon.ico" />
   </ItemGroup>
 
-
-
-
-
-
+  <ItemGroup>
+    <None Remove="Resource\PrimitiveMeshView\PlaneTexture.png" />
+  </ItemGroup>
 
 
 
@@ -67,6 +65,13 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>
+  
+  <ItemGroup>
+    <Resource Include="Resource\PrimitiveMeshView\PlaneTexture.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+  
 
   <ItemGroup>
     <Compile Update="Properties\Settings.Designer.cs">

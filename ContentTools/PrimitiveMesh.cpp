@@ -111,7 +111,7 @@ void createPlane(Scene& scene, const PrimitiveInitInfo& info)
 	LodGroup lod{};
 	lod.name = "plane";
 	lod.meshes.emplace_back(createPlane(info));
-	scene.LodGroups.emplace_back(lod);
+	scene.lodGroups.emplace_back(lod);
 }
 void createCube(Scene& scene, const PrimitiveInitInfo& info)
 {}
