@@ -7,7 +7,7 @@
         xmlns:editors="clr-namespace:ZoneEditor.Editors"
         mc:Ignorable="d" WindowStartupLocation="CenterScreen"
         Title="ZoneEngine" Height="1080" Width="1920"
-        Icon="pack://application:,,,/ZoneEditor;component/Resource/ZoneIcon.ico"
+        Icon="pack://application:,,,/ZoneEditor;component/Resources/ZoneIcon.ico"
         ResizeMode="CanResizeWithGrip"
         Style="{StaticResource ZoneWindowStyle}"
         >

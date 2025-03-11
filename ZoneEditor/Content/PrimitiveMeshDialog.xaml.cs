@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,10 +12,10 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using ZoneEditor.ContentToolsAPIStructs;
 using ZoneEditor.DllWrappers;
 using ZoneEditor.Editors;
+using ZoneEditor.Utilities;
 using ZoneEditor.Utilities.Controls;
 
 namespace ZoneEditor.Content
@@ -26,6 +27,7 @@ namespace ZoneEditor.Content
     {
 
         private static readonly List<ImageBrush> _textures = new List<ImageBrush>();
+
         private void OnPrimitiveType_ComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdatePrimitive();
 
         private void OnSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdatePrimitive();
@@ -80,7 +82,7 @@ namespace ZoneEditor.Content
         {
             var uris = new List<Uri>
             {
-                new Uri("pack://application:,,,/Resource/PrimitiveMeshView/PlaneTexture.png")
+                new Uri("pack://application:,,,/Resources/PrimitiveMeshView/PlaneTexture.png"),
             };
 
             _textures.Clear();
@@ -88,10 +90,28 @@ namespace ZoneEditor.Content
             foreach (var uri in uris)
             {
                 var resource = Application.GetResourceStream(uri);
+                if (resource == null)
+                {
+                    // 没有找到资源，可以记录日志或抛出异常
+                    Debug.WriteLine("未能加载资源: " + uri);
+                    Logger.Log(MessageType.Warning, "未能加载资源: " + uri);
+                    return;
+                }
+                Logger.Log(MessageType.Info, "加载资源: " + uri);
                 using var reader = new BinaryReader(resource.Stream);
                 var data = reader.ReadBytes((int)resource.Stream.Length);
                 var imageSource = (BitmapSource)new ImageSourceConverter().ConvertFrom(data);
                 imageSource.Freeze();
+
+                //var tempFile = Path.Combine(Path.GetTempPath(), "test_image111.png");
+                //using (var fileStream = new FileStream(tempFile, FileMode.Create))
+                //{
+                //    var encoder = new PngBitmapEncoder();
+                //    encoder.Frames.Add(BitmapFrame.Create(imageSource));
+                //    encoder.Save(fileStream);
+                //}
+                //Debug.WriteLine($"图像已保存到: {tempFile}");
+
                 var brush = new ImageBrush(imageSource);
                 brush.Transform = new ScaleTransform(1, -1, 0.5, 0.5);
                 brush.ViewportUnits = BrushMappingMode.Absolute;
@@ -116,7 +136,7 @@ namespace ZoneEditor.Content
             Brush brush = Brushes.White;
             if((sender as CheckBox).IsChecked == true)
             {
-                brush = _textures[(int)PrimitiveMeshTypeComboBox.SelectedItem];
+                brush = _textures[(int)PrimitiveMeshTypeComboBox.SelectedIndex];
             }
 
             var vm = DataContext as GeometryEditor;

@@ -64,6 +64,7 @@ Mesh createPlane(const PrimitiveInitInfo& info,
 			Vec2F uv{ uRange.x , 1.0f - vRange.x };
 			uv.x += i * uStep;
 			uv.y -= j * vStep;
+
 			uvs.emplace_back(uv);
 		}
 	}

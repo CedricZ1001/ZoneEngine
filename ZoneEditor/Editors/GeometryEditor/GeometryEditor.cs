@@ -38,7 +38,7 @@ namespace ZoneEditor.Editors
             {
                 if (_diffuse != value)
                 {
-                    _specular = value;
+                    _diffuse = value;
                     OnPropertyChanged(nameof(Diffuse));
                 }
             }

@@ -25,11 +25,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Resource\ZoneIcon.ico" />
+    <None Remove="Resources\ZoneIcon.ico" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Resource\PrimitiveMeshView\PlaneTexture.png" />
+    <None Remove="Resources\PrimitiveMeshView\PlaneTexture.png" />
   </ItemGroup>
 
 
@@ -61,13 +61,13 @@
 
 
   <ItemGroup>
-    <Resource Include="Resource\ZoneIcon.ico">
+    <Resource Include="Resources\ZoneIcon.ico">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>
   
   <ItemGroup>
-    <Resource Include="Resource\PrimitiveMeshView\PlaneTexture.png">
+    <Resource Include="Resources\PrimitiveMeshView\PlaneTexture.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>
