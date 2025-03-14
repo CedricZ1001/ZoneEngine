@@ -1,4 +1,5 @@
-﻿using System;
+﻿using EnvDTE80;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ namespace ZoneEditor.Editors
     
     public partial class GeometryView : UserControl
     {
+        private static readonly GeometryView _geometryView = new GeometryView() { Background = (Brush)Application.Current.FindResource("Editor.Window.GrayBrush4") };
         private Point _clickedPosition;
         private bool _capturedLeft;
         private bool _capturedRight;
@@ -68,11 +70,6 @@ namespace ZoneEditor.Editors
             var visual = new ModelVisual3D() { Content = modelGroup };
             viewprot.Children.Add(visual);
 
-        }
-        public GeometryView()
-        {
-            InitializeComponent();
-            DataContextChanged += (s, e) => SetGeometry();
         }
 
         private void OnGrid_Mouse_LBD(object sender, MouseButtonEventArgs e)
@@ -148,6 +145,27 @@ namespace ZoneEditor.Editors
             v.Y = r * Math.Cos(theta);
 
             vm .CameraPosition = new Point3D(v.X, v.Y, v.Z);
+        }
+
+        internal static BitmapSource RenderToBitmap(MeshRenderer meshRenderer, int width, int height)
+        {
+            var bmp = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Default);
+
+            _geometryView.DataContext = meshRenderer;
+            _geometryView.Width = width;
+            _geometryView.Height = height;
+            _geometryView.Measure(new Size(width, height));
+            _geometryView.Arrange(new Rect(0, 0, width, height));
+            _geometryView.UpdateLayout();
+
+            bmp.Render(_geometryView);
+            return bmp;
+        }
+
+        public GeometryView()
+        {
+            InitializeComponent();
+            DataContextChanged += (s, e) => SetGeometry();
         }
     }
 }

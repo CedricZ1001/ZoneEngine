@@ -6,6 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using ZoneEditor.Utilities;
 
 namespace ZoneEditor.Content
@@ -134,10 +137,125 @@ namespace ZoneEditor.Content
 
         public ObservableCollection<MeshLOD> LODs { get; } = new ObservableCollection<MeshLOD>();
     }
+    
+    class GeometryImportSettings : ViewModelBase
+    {
+
+        private float _smoothingAngle;
+        public float SmoothingAngle
+        {
+            get => _smoothingAngle;
+            set
+            {
+                if (_smoothingAngle != value)
+                {
+                    _smoothingAngle = value;
+                    OnPropertyChanged(nameof(SmoothingAngle));
+                }
+            }
+        }
+
+
+        private bool _calculateNormals;
+        public bool CalculateNormals
+        {
+            get => _calculateNormals;
+            set
+            {
+                if (_calculateNormals != value)
+                {
+                    _calculateNormals = value;
+                    OnPropertyChanged(nameof(CalculateNormals));
+                }
+            }
+        }
+
+
+        private bool _calculateTangents;
+        public bool CalculateTangents
+        {
+            get => _calculateTangents;
+            set
+            {
+                if (_calculateTangents != value)
+                {
+                    _calculateTangents = value;
+                    OnPropertyChanged(nameof(CalculateTangents));
+                }
+            }
+        }
+
+
+        private bool _reverseHandedness;
+        public bool ReverseHandedness
+        {
+            get => _reverseHandedness;
+            set
+            {
+                if (_reverseHandedness != value)
+                {
+                    _reverseHandedness = value;
+                    OnPropertyChanged(nameof(ReverseHandedness));
+                }
+            }
+        }
+
+
+        private bool _importEmbededTextures;
+        public bool ImportEmbededTextures
+        {
+            get => _importEmbededTextures;
+            set
+            {
+                if (_importEmbededTextures != value)
+                {
+                    _importEmbededTextures = value;
+                    OnPropertyChanged(nameof(ImportEmbededTextures));
+                }
+            }
+        }
+
+
+        private bool _importAnimations;
+        public bool ImportAnimations
+        {
+            get => _importAnimations;
+            set
+            {
+                if (_importAnimations != value)
+                {
+                    _importAnimations = value;
+                    OnPropertyChanged(nameof(ImportAnimations));
+                }
+            }
+        }
+
+        public GeometryImportSettings()
+        {
+            SmoothingAngle = 178.0f;
+            CalculateNormals = false;
+            CalculateTangents = false;
+            ReverseHandedness = false;
+            ImportEmbededTextures = true;
+            ImportAnimations = true;
+        }
+
+        public void ToBinary(BinaryWriter writer)
+        {
+            writer.Write(SmoothingAngle);
+            writer.Write(CalculateNormals);
+            writer.Write(CalculateTangents);
+            writer.Write(ReverseHandedness);
+            writer.Write(ImportEmbededTextures);
+            writer.Write(ImportAnimations);
+        }
+    }
 
     class Geometry : Asset
     {
         private readonly List<LODGroup> _lodGroups = new List<LODGroup>();
+
+        public GeometryImportSettings ImportSettings { get; } = new GeometryImportSettings();
 
         public LODGroup GetLODGroup(int lodGroup = 0)
         {
@@ -242,6 +360,109 @@ namespace ZoneEditor.Content
 
             lod.Meshes.Add(mesh);
 
+        }
+
+        public override IEnumerable<string> Save(string file)
+        {
+            Debug.Assert(_lodGroups.Any());
+            var savedFiles = new List<string>();
+            if (!_lodGroups.Any()) return savedFiles;
+
+            var path = Path.GetDirectoryName(file) + Path.DirectorySeparatorChar;
+            var fileName = Path.GetFileNameWithoutExtension(file);
+
+            try
+            {
+                foreach (var lodGroup in _lodGroups)
+                {
+                    Debug.Assert(lodGroup.LODs.Any());
+
+                    var meshFileName = ContentHelper.SanitizeFileName( path + fileName + "_" + lodGroup.LODs[0].Name + AssetFileExtension);
+                    // NOTE: we have to make a different id for each new asset file.
+                    Guid = Guid.NewGuid();
+                    byte[] data = null;
+                    using(var writer = new BinaryWriter(new MemoryStream()))
+                    {
+                        writer.Write(lodGroup.Name);
+                        writer.Write(lodGroup.LODs.Count);
+                        var hashes = new List<byte>();
+                        foreach (var lod in lodGroup.LODs)
+                        {
+                            LODToBinary(lod,writer,out var hash);
+                            hashes.AddRange(hash);
+                        }
+                        Hash = ContentHelper.ComputeHash(hashes.ToArray());
+                        data = (writer.BaseStream as MemoryStream).ToArray();
+                        Icon = GenerateIcon(lodGroup.LODs[0]);
+                    }
+
+                    Debug.Assert(data?.Length > 0);
+
+                    using (var writer = new BinaryWriter(File.Open(meshFileName, FileMode.Create, FileAccess.Write)))
+                    {
+                        WriteAssetFileHeader(writer);
+                        ImportSettings.ToBinary(writer);
+                        writer.Write(data.Length);
+                        writer.Write(data);
+                    }
+
+                    savedFiles.Add(meshFileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                Logger.Log(MessageType.Error, $"Fialed to save geometry to {file}");
+            }
+
+            return savedFiles;
+        }
+
+        private void LODToBinary(MeshLOD lod, BinaryWriter writer, out byte[] hash)
+        {
+            writer.Write(lod.Name);
+            writer.Write(lod.LodThreshold);
+            writer.Write(lod.Meshes.Count);
+
+            var meshDataBegin = writer.BaseStream.Position;
+
+            foreach (var mesh in lod.Meshes)
+            {
+                writer.Write(mesh.VertexSize);
+                writer.Write(mesh.VertexCount);
+                writer.Write(mesh.IndexSize);
+                writer.Write(mesh.IndexCount);
+                writer.Write(mesh.Vertices);
+                writer.Write(mesh.Indices);
+            }
+
+            var meshDataSize = writer.BaseStream.Position - meshDataBegin;
+            Debug.Assert(meshDataSize > 0);
+            var buffer = (writer.BaseStream as MemoryStream).ToArray();
+            hash = ContentHelper.ComputeHash(buffer, (int)meshDataBegin, (int)meshDataSize);
+
+        }
+
+        private byte[] GenerateIcon(MeshLOD meshLOD)
+        {
+            var width = 90 * 4;
+
+            BitmapSource bmp = null;
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                bmp = Editors.GeometryView.RenderToBitmap(new Editors.MeshRenderer(meshLOD, null), width, width);
+                bmp = new TransformedBitmap(bmp, new ScaleTransform(0.25, 0.25, 0.5, 0.5));
+            });
+
+            using var memStream = new MemoryStream();
+            memStream.SetLength(0);
+
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bmp));
+            encoder.Save(memStream);
+
+            return memStream.ToArray();
         }
         public Geometry() : base(AssetType.Mesh) { }
     }

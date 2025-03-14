@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,6 +16,7 @@ using System.Windows.Media.Imaging;
 using ZoneEditor.ContentToolsAPIStructs;
 using ZoneEditor.DllWrappers;
 using ZoneEditor.Editors;
+using ZoneEditor.GameProject;
 using ZoneEditor.Utilities;
 using ZoneEditor.Utilities.Controls;
 
@@ -47,6 +49,7 @@ namespace ZoneEditor.Content
 
             var primitiveMeshType =(PrimitiveMeshType)PrimitiveMeshTypeComboBox.SelectedItem;
             var info = new PrimitiveInitInfo() { Type = primitiveMeshType };
+            var smoothingAngle = 0;
 
             switch (primitiveMeshType)
             {
@@ -61,7 +64,15 @@ namespace ZoneEditor.Content
                 case PrimitiveMeshType.Cube:
                     return;
                 case PrimitiveMeshType.UVSphere:
-                    return;
+                    {
+                        info.SegmentX = (int)xSliderUVSphere.Value;
+                        info.SegmentY = (int)ySliderUVSphere.Value;
+                        info.Size.X = Value(xScalarBoxUVSphere, 0.001f);
+                        info.Size.Y = Value(yScalarBoxUVSphere, 0.001f);
+                        info.Size.Z = Value(zScalarBoxUVSphere, 0.001f);
+                        smoothingAngle = (int)angleSliderUVSphere.Value;
+                    }
+                    break;
                 case PrimitiveMeshType.ICOSphere:
                     return;
                 case PrimitiveMeshType.CyLinder:
@@ -73,6 +84,7 @@ namespace ZoneEditor.Content
             }
 
             var geometry = new Geometry();
+            geometry.ImportSettings.SmoothingAngle = smoothingAngle;
             ContentToolsAPI.CreatePrimitiveMesh(geometry, info);
             (DataContext as GeometryEditor).SetAsset(geometry);
             OnTexture_CheckBox_Click(textureCheckBox, null);
@@ -83,6 +95,8 @@ namespace ZoneEditor.Content
             var uris = new List<Uri>
             {
                 new Uri("pack://application:,,,/Resources/PrimitiveMeshView/PlaneTexture.png"),
+                new Uri("pack://application:,,,/Resources/PrimitiveMeshView/PlaneTexture.png"),
+                new Uri("pack://application:,,,/Resources/PrimitiveMeshView/UVSphereTexture.png"),
             };
 
             _textures.Clear();
@@ -143,6 +157,23 @@ namespace ZoneEditor.Content
             foreach (var mesh in vm.MeshRenderer.Meshes)
             {
                 mesh.Diffuse = brush;
+            }
+        }
+
+        private void OnSave_Button_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SaveFileDialog()
+            {
+                InitialDirectory = Project.Current.ContentPath,
+                Filter = "Asset file (*.zasset)|*.zasset"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                Debug.Assert(!string.IsNullOrEmpty(dlg.FileName));
+                var asset = (DataContext as IAssetEditor).Asset;
+                Debug.Assert(asset != null);
+                asset.Save(dlg.FileName);
             }
         }
     }
