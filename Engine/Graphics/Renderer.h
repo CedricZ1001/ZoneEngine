@@ -15,4 +15,14 @@ struct RenderSurface
 	Surface surface{};
 };
 
+enum class GraphicsPlatform : uint32
+{
+	direct3d12 = 0,
+	vulkan = 1,
+	opengl = 2, // etc
+};
+
+bool initialize(GraphicsPlatform platform);
+void shutdown();
+
 } 
