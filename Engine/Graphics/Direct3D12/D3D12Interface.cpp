@@ -11,6 +11,7 @@ void getPlatformInterface(PlatformInterface& pi)
 {
 	pi.initialize = core::initialize;
 	pi.shutdown = core::shutdown;
+	pi.render = core::render;
 }
 
 }

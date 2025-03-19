@@ -1,15 +1,168 @@
 // Copyright (c) CedricZ1, 2025
 // Distributed under the MIT license. See the LICENSE file in the project root for more information.
 #include "D3D12Core.h"
-
+#include <sstream>
 using namespace Microsoft::WRL;
 
 namespace zone::graphics::d3d12::core {
-
 namespace {
 
-ID3D12Device8* mainDevice{ nullptr };
-IDXGIFactory7* dxgiFactory{ nullptr };
+class D3D12Command
+{
+public:
+
+	D3D12Command() = default;
+	DISABLE_COPY_AND_MOVE(D3D12Command);
+
+	explicit D3D12Command(ID3D12Device8 *const device, D3D12_COMMAND_LIST_TYPE type)
+	{
+		HRESULT hr{ S_OK };
+		D3D12_COMMAND_QUEUE_DESC queueDesc{};
+		queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		queueDesc.NodeMask = 0;
+		queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+		queueDesc.Type = type;
+
+		DXCall(hr = device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_cmdQueue)));
+		if (FAILED(hr))
+		{
+			goto _error;
+		}
+		NAME_D3D12_OBJECT(_cmdQueue, type == D3D12_COMMAND_LIST_TYPE_DIRECT ? L"GFX Command Queue" : type == D3D12_COMMAND_LIST_TYPE_COMPUTE ? L"Compute Command Queue" : L"Command Queue");
+
+		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+		{
+			CommandFrame& frame{ _cmdFrames[i] };
+			DXCall(hr = device->CreateCommandAllocator(type, IID_PPV_ARGS(&frame.cmdAllocator)));
+			if (FAILED(hr))
+			{
+				goto _error;
+			}
+			NAME_D3D12_OBJECT_INDEXED(frame.cmdAllocator, i, type == D3D12_COMMAND_LIST_TYPE_DIRECT ? L"GFX Command Allocator" : type == D3D12_COMMAND_LIST_TYPE_COMPUTE ? L"Compute Command Allocator" : L"Command Allocator");
+		}
+
+		DXCall(hr = device->CreateCommandList(0, type, _cmdFrames[0].cmdAllocator, nullptr, IID_PPV_ARGS(&_cmdList)));
+		if (FAILED(hr))
+		{
+			goto _error;
+		}
+		DXCall(_cmdList->Close());
+		NAME_D3D12_OBJECT(_cmdList, type == D3D12_COMMAND_LIST_TYPE_DIRECT ? L"GFX Command List" : type == D3D12_COMMAND_LIST_TYPE_COMPUTE ? L"Compute Command List" : L"Command List");
+
+		DXCall(hr = device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
+		if (FAILED(hr))
+		{
+			goto _error;
+		}
+		NAME_D3D12_OBJECT(_fence, L"D3D12 Fence");
+
+		_fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+		assert(_fenceEvent);
+
+		return;
+
+	_error:
+		release();
+	}
+
+	~D3D12Command()
+	{
+		assert(!_cmdQueue && !_cmdList && !_fence);
+	}
+
+	void beginFrame()
+	{
+		CommandFrame& frame{ _cmdFrames[_frameIndex] };
+		frame.wait(_fenceEvent, _fence);
+		DXCall(frame.cmdAllocator->Reset());
+		DXCall(_cmdList->Reset(frame.cmdAllocator, nullptr));
+	}
+
+	void endFrame()
+	{
+		DXCall(_cmdList->Close());
+		ID3D12CommandList *const cmdLists[]{ _cmdList };
+		_cmdQueue->ExecuteCommandLists(_countof(cmdLists), &cmdLists[0]);
+
+		uint64& fenceValue{ _fenceValue };
+		++fenceValue;
+		CommandFrame& frame{ _cmdFrames[_frameIndex] };
+		frame.fenceValue = fenceValue;
+		_cmdQueue->Signal(_fence, fenceValue);
+
+		_frameIndex = (_frameIndex + 1) % FRAME_BUFFER_COUNT;
+	}
+
+	void flush()
+	{
+		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+		{
+			_cmdFrames[i].wait(_fenceEvent, _fence);
+		}
+		_frameIndex = 0;
+	}
+
+	void release()
+	{
+		flush();
+		core::release(_fence);
+		_fenceValue = 0;
+
+		CloseHandle(_fenceEvent);
+		_fenceEvent = nullptr;
+
+		core::release(_cmdQueue);
+		core::release(_cmdList);
+
+		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+		{
+			_cmdFrames[i].release();
+		}
+	}
+
+	constexpr ID3D12CommandQueue* const commandQueue() const { return _cmdQueue; }
+	constexpr ID3D12GraphicsCommandList6* const commandList() const { return _cmdList; }
+	constexpr uint32 frameIndex() const { return _frameIndex; }
+
+private:
+	struct CommandFrame 
+	{
+		ID3D12CommandAllocator* cmdAllocator{ nullptr };
+		uint64					fenceValue{ 0 };
+		void wait(HANDLE fenceEvent, ID3D12Fence1* fence)
+		{
+			assert(fence && fenceEvent);
+			// If the current fence value is still less than "fenceValue"
+			// then we know the GPU has not finished executing the command lists
+			//since it has not reached the "_cmd_queue->Signal()" command.
+			if (fence->GetCompletedValue() < fenceValue)
+			{
+				// We have the fence create an event witch is signaled one the fence's current value equals "fenceValue"
+				DXCall(fence->SetEventOnCompletion(fenceValue, fenceEvent));
+				// Wait until the fence has triggered the event that its current value has reached "fenceValue"
+				// indicating that command queue has finished executing.
+				WaitForSingleObject(fenceEvent, INFINITE);
+			}
+		}
+
+		void release()
+		{
+			core::release(cmdAllocator);
+		}
+	};
+
+	ID3D12CommandQueue*				_cmdQueue{ nullptr };
+	ID3D12GraphicsCommandList6*		_cmdList{ nullptr };
+	ID3D12Fence1*					_fence{ nullptr };
+	uint64							_fenceValue{0};
+	HANDLE							_fenceEvent{ nullptr };
+	CommandFrame					_cmdFrames[FRAME_BUFFER_COUNT];
+	uint32							_frameIndex{ 0 };
+};
+
+ID3D12Device8*			mainDevice{ nullptr };
+IDXGIFactory7*			dxgiFactory{ nullptr };
+D3D12Command			gfxCommand;
 
 constexpr D3D_FEATURE_LEVEL minimumFeatureLevel{ D3D_FEATURE_LEVEL_11_0 };
 
@@ -29,6 +182,7 @@ IDXGIAdapter4* determineMainAdapter()
 		// pick the first adapter that supports the minimum feature level.
 		if (SUCCEEDED(D3D12CreateDevice(adapter, minimumFeatureLevel, __uuidof(ID3D12Device), nullptr)))
 		{
+			LOG_DXGI_ADAPTER(adapter);
 			return adapter;
 		}
 		release(adapter);
@@ -38,11 +192,12 @@ IDXGIAdapter4* determineMainAdapter()
 
 D3D_FEATURE_LEVEL getMaxFeatureLevel(IDXGIAdapter4* adapter)
 {
-	constexpr D3D_FEATURE_LEVEL featureLevel[4]{
+	constexpr D3D_FEATURE_LEVEL featureLevel[5]{
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_12_0,
 		D3D_FEATURE_LEVEL_12_1,
+		D3D_FEATURE_LEVEL_12_2,
 	};
 
 	D3D12_FEATURE_DATA_FEATURE_LEVELS featureLevelInfo{};
@@ -107,6 +262,12 @@ bool initialize()
 		return failedInit();
 	}
 
+	new (&gfxCommand) D3D12Command(mainDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	if (!gfxCommand.commandQueue())
+	{
+		return failedInit();
+	}
+
 	NAME_D3D12_OBJECT(mainDevice, L"Main D3D12 Device");
 
 #ifdef _DEBUG
@@ -124,6 +285,8 @@ bool initialize()
 
 void shutdown()
 {
+	gfxCommand.release();
+
 	release(dxgiFactory);
 
 #ifdef _DEBUG
@@ -144,6 +307,15 @@ void shutdown()
 #endif // _DEBUG
 
 	release(mainDevice);
+}
+
+void render()
+{
+	gfxCommand.beginFrame();
+	ID3D12GraphicsCommandList6* cmdList{ gfxCommand.commandList() };
+
+
+	gfxCommand.endFrame();
 }
 
 }

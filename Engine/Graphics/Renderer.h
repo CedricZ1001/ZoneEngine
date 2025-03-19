@@ -24,5 +24,5 @@ enum class GraphicsPlatform : uint32
 
 bool initialize(GraphicsPlatform platform);
 void shutdown();
-
+void render();
 } 

@@ -1,9 +1,12 @@
 // Copyright (c) CedricZ1, 2025
 // Distributed under the MIT license. See the LICENSE file in the project root for more information.
+
 #include "..\Platform\PlatformTypes.h"
 #include "..\Platform\Platform.h"
 #include "..\Graphics\Renderer.h"
 #include "TestRenderer.h"
+
+#ifdef TEST_RENDERER
 
 using namespace zone;
 
@@ -76,6 +79,7 @@ bool EngineTest::initialize()
 void EngineTest::run()
 {
 	std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	graphics::render();
 }
 
 void EngineTest::shutdown()
@@ -87,3 +91,5 @@ void EngineTest::shutdown()
 
 	graphics::shutdown();
 }
+
+#endif
