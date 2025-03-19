@@ -6,7 +6,7 @@
 #include "..\Graphics\Renderer.h"
 #include "TestRenderer.h"
 
-#ifdef TEST_RENDERER
+#if TEST_RENDERER
 
 using namespace zone;
 
@@ -62,10 +62,10 @@ bool EngineTest::initialize()
 
 	platform::WindowInitInfo info[]
 	{
-		{&winProc,nullptr,L"Test window 1",100,100,400,800},
-		{&winProc,nullptr,L"Test window 2",350,150,400,800},
-		{&winProc,nullptr,L"Test window 3",600,200,400,800},
-		{&winProc,nullptr,L"Test window 4",950,250,400,800},
+		{&winProc,nullptr,L"Render window 1",100,100,400,800},
+		{&winProc,nullptr,L"Render window 2",350,150,400,800},
+		{&winProc,nullptr,L"Render window 3",600,200,400,800},
+		{&winProc,nullptr,L"Render window 4",950,250,400,800},
 	};
 	static_assert(_countof(info) == _countof(_surfaces));
 
