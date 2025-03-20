@@ -262,6 +262,7 @@ bool initialize()
 		return failedInit();
 	}
 
+	gfxCommand.~D3D12Command();
 	new (&gfxCommand) D3D12Command(mainDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
 	if (!gfxCommand.commandQueue())
 	{
