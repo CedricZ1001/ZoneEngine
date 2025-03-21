@@ -62,10 +62,9 @@ if(swprintf_s(fullName,L"%s[%u]", name, n) >0){		\
 #define LOG_DXGI_ADAPTER(adapter){												\
 DXGI_ADAPTER_DESC1 desc;														\
 (adapter)->GetDesc1(&desc);														\
-std::wstringstream ss;															\
-ss << L"ADAPTER: " << desc.Description << L"\n";								\
-ss << L"VRAM SIZE: " << (desc.DedicatedVideoMemory / (1024 * 1024)) << L" MB\n";\
-OutputDebugStringW(ss.str().c_str());											\
+wchar_t fullName[128];															\
+swprintf_s(fullName, 128, L"ADAPTER: %s\nVRAM SIZE: %Iu MB\n", desc.Description, (desc.DedicatedVideoMemory / (1024 * 1024)));	\
+OutputDebugString(fullName);													\
 }
 
 #else

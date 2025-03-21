@@ -16,7 +16,7 @@ struct DescriptorHandle {
 #ifdef _DEBUG
 private:
 	friend class DescriptorHeap;
-	DescriptorHandle*	container{ nullptr };
+	DescriptorHeap*	container{ nullptr };
 	uint32				index{ uint32_invalid_id };
 #endif // _DEBUG
 
@@ -31,6 +31,7 @@ public:
 	~DescriptorHeap() { assert(!_heap); }
 	bool initialize(uint32 capacity, bool isShaderVisible);
 	void release();
+	void processDeferredFree(uint32 frameIdx);
 
 	[[nodiscard]] DescriptorHandle allocate();
 	void free(DescriptorHandle& handle);
@@ -49,6 +50,8 @@ private:
 	D3D12_CPU_DESCRIPTOR_HANDLE			_cpuStart{};
 	D3D12_GPU_DESCRIPTOR_HANDLE			_gpuStart{};
 	std::unique_ptr<uint32[]>			_freeHandles{};
+	utl::vector<uint32>					_deferredFreeIndices[FRAME_BUFFER_COUNT]{};
+	std::mutex							_mutex{};
 	uint32								_capacity{ 0 };
 	uint32								_size{ 0 };
 	uint32								_descriptorSize{ };

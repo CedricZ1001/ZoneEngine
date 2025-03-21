@@ -20,4 +20,21 @@ constexpr void release(T*& resource)
 	}
 }
 
+namespace detail {
+	void deferredRelease(IUnknown* resource);
+}
+
+template<typename T>
+constexpr void deferredRelease(T*& resource)
+{
+	if (resource)
+	{
+		detail::deferredRelease(resource);
+		resource = nullptr;
+	}
+}
+
+ID3D12Device *const getDevice();
+uint32 currentFrameIndex();
+void setDeferredReleasesFlag();
 }

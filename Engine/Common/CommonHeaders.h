@@ -11,6 +11,7 @@
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <mutex>
 
 #ifdef _WIN64
 #include<DirectXMath.h>

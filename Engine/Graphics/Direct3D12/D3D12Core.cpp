@@ -1,7 +1,8 @@
 // Copyright (c) CedricZ1, 2025
 // Distributed under the MIT license. See the LICENSE file in the project root for more information.
 #include "D3D12Core.h"
-#include <sstream>
+#include "D3D12Resources.h"
+
 using namespace Microsoft::WRL;
 
 namespace zone::graphics::d3d12::core {
@@ -148,6 +149,7 @@ private:
 		void release()
 		{
 			core::release(cmdAllocator);
+			fenceValue = 0;
 		}
 	};
 
@@ -163,6 +165,14 @@ private:
 ID3D12Device8*			mainDevice{ nullptr };
 IDXGIFactory7*			dxgiFactory{ nullptr };
 D3D12Command			gfxCommand;
+DescriptorHeap			rtvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
+DescriptorHeap			dsvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
+DescriptorHeap			srvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+DescriptorHeap			uavDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
+
+utl::vector<IUnknown*>	deferredReleases[FRAME_BUFFER_COUNT]{};
+uint32					deferredReleasesFlag[FRAME_BUFFER_COUNT]{};
+std::mutex				deferredReleasesMutex{ };
 
 constexpr D3D_FEATURE_LEVEL minimumFeatureLevel{ D3D_FEATURE_LEVEL_11_0 };
 
@@ -210,7 +220,42 @@ D3D_FEATURE_LEVEL getMaxFeatureLevel(IDXGIAdapter4* adapter)
 	return featureLevelInfo.MaxSupportedFeatureLevel;
 }
 
+void __declspec(noinline)
+processDeferredReleases(uint32 frameIdx)
+{
+	std::lock_guard lock{ deferredReleasesMutex };
+
+	deferredReleasesFlag[frameIdx] = 0;
+
+	rtvDescHeap.processDeferredFree(frameIdx);
+	dsvDescHeap.processDeferredFree(frameIdx);
+	srvDescHeap.processDeferredFree(frameIdx);
+	uavDescHeap.processDeferredFree(frameIdx);
+	
+	utl::vector<IUnknown*>& resources{ deferredReleases[frameIdx] };
+	if (!resources.empty())
+	{
+		for (auto& resource : resources)
+		{
+			release(resource);
+			resources.clear();
+		}
+	}
+}
+
 } // anonymous namespace
+
+namespace detail {
+
+void deferredRelease(IUnknown* resource)
+{
+	const uint32 frameIdx{ currentFrameIndex() };
+	std::lock_guard lock{ deferredReleasesMutex };
+	deferredReleases[frameIdx].push_back(resource);
+	setDeferredReleasesFlag();
+}
+
+}// detail namespace
 
 bool initialize() 
 {
@@ -227,8 +272,14 @@ bool initialize()
 	// Enable debugging layer. Requires "Graphics Tools" optional feature
 	{
 		ComPtr<ID3D12Debug3> debugInterface;
-		DXCall(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
-		debugInterface->EnableDebugLayer();
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface))))
+		{
+			debugInterface->EnableDebugLayer();
+		}
+		else {
+			OutputDebugStringA("Warning: D3D12 Debug interface is not available. Verify that Graphics Tools optional feature is installed in this device.\n");
+		}
+
 		dxgiFactoryFlag |= DXGI_CREATE_FACTORY_DEBUG;
 	}
 #endif //_DEBUG
@@ -262,15 +313,6 @@ bool initialize()
 		return failedInit();
 	}
 
-	gfxCommand.~D3D12Command();
-	new (&gfxCommand) D3D12Command(mainDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
-	if (!gfxCommand.commandQueue())
-	{
-		return failedInit();
-	}
-
-	NAME_D3D12_OBJECT(mainDevice, L"Main D3D12 Device");
-
 #ifdef _DEBUG
 	{
 		ComPtr<ID3D12InfoQueue> infoQueue;
@@ -281,6 +323,30 @@ bool initialize()
 	}
 #endif // _DEBUG
 
+
+	bool result{ true };
+	result &= rtvDescHeap.initialize(512, false);
+	result &= dsvDescHeap.initialize(512, false);
+	result &= srvDescHeap.initialize(4096, true);
+	result &= uavDescHeap.initialize(512, false);
+	if (!result)
+	{
+		return failedInit();
+	}
+
+	gfxCommand.~D3D12Command();
+	new (&gfxCommand) D3D12Command(mainDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
+	if (!gfxCommand.commandQueue())
+	{
+		return failedInit();
+	}
+
+	NAME_D3D12_OBJECT(mainDevice, L"Main D3D12 Device");
+	NAME_D3D12_OBJECT(rtvDescHeap.heap(), L"RTV Descriptor Heap");
+	NAME_D3D12_OBJECT(dsvDescHeap.heap(), L"DSV Descriptor Heap");
+	NAME_D3D12_OBJECT(srvDescHeap.heap(), L"SRV Descriptor Heap");
+	NAME_D3D12_OBJECT(uavDescHeap.heap(), L"UAV Descriptor Heap");
+
 	return true;
 }
 
@@ -288,7 +354,19 @@ void shutdown()
 {
 	gfxCommand.release();
 
+	for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+	{
+		processDeferredReleases(i);
+	}
+
 	release(dxgiFactory);
+
+	rtvDescHeap.release();
+	dsvDescHeap.release();
+	srvDescHeap.release();
+	uavDescHeap.release();
+
+	processDeferredReleases(0);
 
 #ifdef _DEBUG
 	{
@@ -315,8 +393,28 @@ void render()
 	gfxCommand.beginFrame();
 	ID3D12GraphicsCommandList6* cmdList{ gfxCommand.commandList() };
 
+	const uint32 frameIdx{ currentFrameIndex() };
+	if (deferredReleasesFlag[frameIdx])
+	{
+		processDeferredReleases(frameIdx);
+	}
 
 	gfxCommand.endFrame();
+}
+
+ID3D12Device *const getDevice()
+{
+	return mainDevice;
+}
+
+uint32 currentFrameIndex()
+{
+	return gfxCommand.frameIndex();
+}
+
+void setDeferredReleasesFlag() 
+{
+	deferredReleasesFlag[currentFrameIndex()] = 1;
 }
 
 }
