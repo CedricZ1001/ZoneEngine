@@ -39,3 +39,5 @@ using deque = std::deque<T>;
 namespace zone::utl {
 
 }
+
+#include "FreeList.h"

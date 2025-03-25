@@ -11,7 +11,7 @@ class Window
 {
 public:
 	constexpr explicit Window(window_id id) : _id{ id } {};
-	constexpr Window() : _id{ id::invalid_id } {};
+	constexpr Window() = default;
 	constexpr window_id getID() const { return _id; }
 	constexpr bool isValid() const { return id::is_valid(_id); }
 

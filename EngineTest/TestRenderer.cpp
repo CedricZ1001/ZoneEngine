@@ -11,6 +11,8 @@
 using namespace zone;
 
 graphics::RenderSurface  _surfaces[4];
+TimeIt timer{};
+void destroyRenderSurface(graphics::RenderSurface& surface);
 
 LRESULT winProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -21,9 +23,16 @@ LRESULT winProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 		bool allClosed{ true };
 		for (uint32 i{ 0 }; i < _countof(_surfaces); ++i)
 		{
-			if (!_surfaces[i].window.isClosed())
+			if (_surfaces[i].window.isValid())
 			{
-				allClosed = false;
+				if (_surfaces[i].window.isClosed())
+				{
+					destroyRenderSurface(_surfaces[i]);
+				}
+				else
+				{
+					allClosed = false;
+				}
 			}
 		}
 		if (allClosed)
@@ -41,6 +50,12 @@ LRESULT winProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			return 0;
 		}
 		break;
+	case WM_KEYDOWN:
+		if (wparam == VK_ESCAPE)
+		{
+			PostMessage(hwnd, WM_CLOSE, 0, 0);
+			return 0;
+		}
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
@@ -48,11 +63,18 @@ LRESULT winProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 void createRenderSurface(graphics::RenderSurface& surface, platform::WindowInitInfo info) 
 {
 	surface.window = platform::createWindow(&info);
+	surface.surface = graphics::createSurface(surface.window);
 }
 
 void destroyRenderSurface(graphics::RenderSurface& surface)
 {
-	platform::removeWindow(surface.window.getID());
+	graphics::RenderSurface temp{ surface };
+	surface = {};
+	if (temp.surface.isValid())
+	{
+		graphics::removeSurface(temp.surface.getID());
+		platform::removeWindow(temp.window.getID());
+	}
 }
 
 bool EngineTest::initialize()
@@ -78,8 +100,16 @@ bool EngineTest::initialize()
 
 void EngineTest::run()
 {
-	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	graphics::render();
+	timer.begin();
+	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	for (uint32 i{ 0 }; i < _countof(_surfaces); ++i)
+	{
+		if (_surfaces[i].surface.isValid())
+		{
+			_surfaces[i].surface.render();
+		}
+	}
+	timer.end();
 }
 
 void EngineTest::shutdown()

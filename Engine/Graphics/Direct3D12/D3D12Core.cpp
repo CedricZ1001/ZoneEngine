@@ -2,6 +2,7 @@
 // Distributed under the MIT license. See the LICENSE file in the project root for more information.
 #include "D3D12Core.h"
 #include "D3D12Resources.h"
+#include "D3D12Surface.h"
 
 using namespace Microsoft::WRL;
 
@@ -162,9 +163,11 @@ private:
 	uint32							_frameIndex{ 0 };
 };
 
-ID3D12Device8*			mainDevice{ nullptr };
-IDXGIFactory7*			dxgiFactory{ nullptr };
-D3D12Command			gfxCommand;
+ID3D12Device8*				mainDevice{ nullptr };
+IDXGIFactory7*				dxgiFactory{ nullptr };
+D3D12Command				gfxCommand;
+utl::vector<D3D12Surface>	surfaces{};
+
 DescriptorHeap			rtvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 DescriptorHeap			dsvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
 DescriptorHeap			srvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV };
@@ -174,6 +177,7 @@ utl::vector<IUnknown*>	deferredReleases[FRAME_BUFFER_COUNT]{};
 uint32					deferredReleasesFlag[FRAME_BUFFER_COUNT]{};
 std::mutex				deferredReleasesMutex{ };
 
+constexpr DXGI_FORMAT renderTargetFormat{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB };
 constexpr D3D_FEATURE_LEVEL minimumFeatureLevel{ D3D_FEATURE_LEVEL_11_0 };
 
 bool failedInit()
@@ -334,7 +338,6 @@ bool initialize()
 		return failedInit();
 	}
 
-	gfxCommand.~D3D12Command();
 	new (&gfxCommand) D3D12Command(mainDevice, D3D12_COMMAND_LIST_TYPE_DIRECT);
 	if (!gfxCommand.commandQueue())
 	{
@@ -388,23 +391,34 @@ void shutdown()
 	release(mainDevice);
 }
 
-void render()
-{
-	gfxCommand.beginFrame();
-	ID3D12GraphicsCommandList6* cmdList{ gfxCommand.commandList() };
-
-	const uint32 frameIdx{ currentFrameIndex() };
-	if (deferredReleasesFlag[frameIdx])
-	{
-		processDeferredReleases(frameIdx);
-	}
-
-	gfxCommand.endFrame();
-}
-
 ID3D12Device *const getDevice()
 {
 	return mainDevice;
+}
+
+DescriptorHeap& rtvHeap()
+{
+	return rtvDescHeap;
+}
+
+DescriptorHeap& dsvHeap()
+{
+	return dsvDescHeap;
+}
+
+DescriptorHeap& srvHeap()
+{
+	return srvDescHeap;
+}
+
+DescriptorHeap& uavHeap()
+{
+	return uavDescHeap;
+}
+
+DXGI_FORMAT defaultRenderTargetFormat()
+{
+	return renderTargetFormat;
 }
 
 uint32 currentFrameIndex()
@@ -416,5 +430,54 @@ void setDeferredReleasesFlag()
 {
 	deferredReleasesFlag[currentFrameIndex()] = 1;
 }
+
+Surface createSurface(platform::Window window)
+{
+	surfaces.emplace_back(window);
+	surface_id id{ static_cast<uint32>(surfaces.size() - 1) };
+	surfaces[id].createSwapChain(dxgiFactory, gfxCommand.commandQueue(), renderTargetFormat);
+	return Surface{ id };
+}
+
+void removeSurface(surface_id id)
+{
+	gfxCommand.flush();
+	surfaces[id].~D3D12Surface();
+}
+
+void resizeSurface(surface_id id, uint32, uint32)
+{
+	gfxCommand.flush();
+	surfaces[id].resize();
+}
+
+uint32 surfaceWidth(surface_id id)
+{
+	return surfaces[id].width();
+}
+
+uint32 surfaceHeight(surface_id id)
+{
+	return surfaces[id].height();
+}
+
+void renderSurface(surface_id id)
+{
+	gfxCommand.beginFrame();
+	ID3D12GraphicsCommandList6* cmdList{ gfxCommand.commandList() };
+
+	const uint32 frameIdx{ currentFrameIndex() };
+	if (deferredReleasesFlag[frameIdx])
+	{
+		processDeferredReleases(frameIdx);
+	}
+	const D3D12Surface& surface{ surfaces[id] };
+
+	// Presenting swap chain buffers happens in lockstep with frame buffers.
+	surface.present();
+
+	gfxCommand.endFrame();
+}
+
 
 }

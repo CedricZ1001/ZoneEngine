@@ -11,7 +11,13 @@ void getPlatformInterface(PlatformInterface& pi)
 {
 	pi.initialize = core::initialize;
 	pi.shutdown = core::shutdown;
-	pi.render = core::render;
+
+	pi.surface.create = core::createSurface;
+	pi.surface.remove = core::removeSurface;
+	pi.surface.resize = core::resizeSurface;
+	pi.surface.width = core::surfaceWidth;
+	pi.surface.height = core::surfaceHeight;
+	pi.surface.render = core::renderSurface;
 }
 
 }

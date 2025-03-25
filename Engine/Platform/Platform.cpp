@@ -306,7 +306,7 @@ void Window::resize(uint32 width, uint32 height) const
 uint32 Window::width() const
 {
 	math::Vec4U s{ size() };
-	return s.z, s.x;
+	return s.z - s.x;
 }
 
 uint32 Window::height() const

@@ -36,9 +36,39 @@ void shutdown()
 	gfx.shutdown();
 }
 
-void render()
+Surface createSurface(platform::Window window)
 {
-	//gfx.render();
+	return gfx.surface.create(window);
 }
 
+void removeSurface(surface_id id)
+{
+	assert(id::is_valid(id));
+	gfx.surface.remove(id);
 }
+
+void Surface::resize(uint32 width, uint32 height) const 
+{
+	assert(isValid());
+	gfx.surface.resize(_id, width, height);
+}
+
+uint32 Surface::width() const 
+{
+	assert(isValid());
+	return gfx.surface.width(_id);
+}
+
+uint32 Surface::height() const
+{
+	assert(isValid());
+	return gfx.surface.height(_id);
+}
+
+void Surface::render() const
+{
+	assert(isValid());
+	gfx.surface.render(_id);
+}
+
+} // namespace zone::graphics

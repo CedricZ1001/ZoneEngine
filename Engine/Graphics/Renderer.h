@@ -6,8 +6,23 @@
 
 namespace zone::graphics
 {
+DEFINE_TYPED_ID(surface_id)
+
 class Surface
-{};
+{
+public:
+	constexpr explicit Surface(surface_id id) : _id{ id } {};
+	constexpr Surface() = default;
+	constexpr surface_id getID() const { return _id; }
+	constexpr bool isValid() const { return id::is_valid(_id); }
+
+	void resize(uint32 width, uint32 height) const;
+	uint32 width() const;
+	uint32 height() const;
+	void render() const;
+private:
+	surface_id _id{ id::invalid_id };
+};
 
 struct RenderSurface 
 {
@@ -25,4 +40,7 @@ enum class GraphicsPlatform : uint32
 bool initialize(GraphicsPlatform platform);
 void shutdown();
 void render();
+
+Surface createSurface(platform::Window window);
+void removeSurface(surface_id id);
 } 
