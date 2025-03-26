@@ -17,37 +17,11 @@ struct WindowInfo
 	DWORD	style{ WS_VISIBLE };
 	bool	isFullScreen{ false };
 	bool	isClosed{ false };
+
+	~WindowInfo() { assert(!isFullScreen); }
 };
 
-utl::vector<WindowInfo> windows;
-//////////////////////////////////////////////////////////////
-// TODO: this part will be handled by a free-list container later
-utl::vector<uint32> avaliableSlots;
-
-uint32 addToWindows(WindowInfo info) 
-{
-	uint32 id{ uint32_invalid_id };
-	if (avaliableSlots.empty())
-	{
-		id = (uint32)windows.size();
-		windows.emplace_back(info);
-	}
-	else 
-	{
-		id = avaliableSlots.back();
-		avaliableSlots.pop_back();
-		assert(id != uint32_invalid_id);
-		windows[id] = info;
-	}
-	return id;
-}
-
-void removeFromWindows(uint32 id) 
-{
-	assert(id < windows.size());
-	avaliableSlots.emplace_back(id);
-}
-//////////////////////////////////////////////////////////////
+utl::FreeList<WindowInfo> windows;
 
 WindowInfo& getFromID(window_id id)
 {
@@ -242,7 +216,7 @@ Window createWindow(const WindowInitInfo* const initInfo)
 	 if (info.hwnd)
 	 {
 		 DEBUG_OP(SetLastError(0));
-		 const window_id id{ addToWindows(info) };
+		 const window_id id{ windows.add(info) };
 		 SetWindowLongPtr(info.hwnd, GWLP_USERDATA, (LONG_PTR)id);
 
 		 if (callback)
@@ -261,7 +235,7 @@ void removeWindow(window_id id)
 {
 	WindowInfo& info{ getFromID(id) };
 	DestroyWindow(info.hwnd);
-	removeFromWindows(id);
+	windows.remove(id);
 }
 #else
 #error "Must implement at least one platform"

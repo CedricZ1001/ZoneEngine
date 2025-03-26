@@ -186,6 +186,42 @@ bool failedInit()
 	return false;
 }
 
+//void LogCurrentDisplaySettings(const wchar_t* deviceName)
+//{
+//	DEVMODE dm;
+//	ZeroMemory(&dm, sizeof(dm));
+//	dm.dmSize = sizeof(dm);
+//	if (EnumDisplaySettings(deviceName, ENUM_CURRENT_SETTINGS, &dm))
+//	{
+//		wchar_t buffer[256];
+//		swprintf_s(buffer, 256, L"The current display mode:\n\tResolution: %d x %d\n\tRefresh-rate: %d Hz\n",
+//			dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency);
+//		OutputDebugString(buffer);
+//	}
+//	else
+//	{
+//		OutputDebugString(L"Failed to get the current display settings\n");
+//	}
+//}
+//
+//void LogDisplayOutputs(IDXGIAdapter4* adapter)
+//{
+//	IDXGIOutput* output = nullptr;
+//	for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; ++i)
+//	{
+//		DXGI_OUTPUT_DESC desc;
+//		if (SUCCEEDED(output->GetDesc(&desc)))
+//		{
+//			wchar_t outputInfo[256];
+//			swprintf_s(outputInfo, 256, L"DISPLAY OUTPUT %u:\n\tDevice Name: %s\n", i, desc.DeviceName);
+//			OutputDebugString(outputInfo);
+//
+//			LogCurrentDisplaySettings(desc.DeviceName);
+//		}
+//		output->Release();
+//	}
+//}
+
 IDXGIAdapter4* determineMainAdapter()
 {
 	IDXGIAdapter4* adapter{ nullptr };
@@ -197,6 +233,7 @@ IDXGIAdapter4* determineMainAdapter()
 		if (SUCCEEDED(D3D12CreateDevice(adapter, minimumFeatureLevel, __uuidof(ID3D12Device), nullptr)))
 		{
 			LOG_DXGI_ADAPTER(adapter);
+			//LogDisplayOutputs(adapter);
 			return adapter;
 		}
 		release(adapter);

@@ -101,7 +101,7 @@ bool EngineTest::initialize()
 void EngineTest::run()
 {
 	timer.begin();
-	std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	std::this_thread::sleep_for(std::chrono::milliseconds(3));
 	for (uint32 i{ 0 }; i < _countof(_surfaces); ++i)
 	{
 		if (_surfaces[i].surface.isValid())

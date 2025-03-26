@@ -33,8 +33,8 @@ public:
 		else
 		{
 			id = _nextFreeIndex;
-			assert(id < _array.size() && !alreadeyRemoved());
-			_nextFreeIndex = *static_cast<const uint32 *const>(std::addressof(_array[id]));
+			assert(id < _array.size() && !alreadeyRemoved(id));
+			_nextFreeIndex = *reinterpret_cast<const uint32*>(std::addressof(_array[id]));
 			new	(std::addressof(_array[id])) T{ std::forward<params>(p)... };
 		}
 		++_size;
@@ -43,11 +43,11 @@ public:
 
 	constexpr void remove(uint32 id)
 	{
-		assert(id < _array.size() && !alreadeyRemoved());
+		assert(id < _array.size() && !alreadeyRemoved(id));
 		T& item{ _array[id] };
 		item.~T();
-		DEBUG_OP(memset(std::addressof(_array[id], 0xcc, sizeof(T))));
-		*static_cast<uint32*>(std::addressof(item)) = _nextFreeIndex;
+		DEBUG_OP(memset(std::addressof(_array[id]), 0xcc, sizeof(T)));
+		*reinterpret_cast<uint32*>(std::addressof(_array[id])) = _nextFreeIndex;
 		_nextFreeIndex = id;
 		--_size;
 	}
@@ -69,13 +69,13 @@ public:
 
 	[[nodiscard]] constexpr T& operator[](uint32 id)
 	{
-		assert(id < _array.size() && !alreadeyRemoved());
+		assert(id < _array.size() && !alreadeyRemoved(id));
 		return _array[id];
 	}
 
 	[[nodiscard]] constexpr const T& operator[](uint32 id) const
 	{
-		assert(id < _array.size() && !alreadeyRemoved());
+		assert(id < _array.size() && !alreadeyRemoved(id));
 		return _array[id];
 	}
 private:

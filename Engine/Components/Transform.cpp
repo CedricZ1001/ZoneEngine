@@ -34,8 +34,6 @@ component create(init_info info, game_entity::entity entity)
 	return component(transform_id{ (id::id_type)positions.size() - 1 });
 }
 
-
-
 void remove(component _component)
 {
 	assert(_component.is_valid());
