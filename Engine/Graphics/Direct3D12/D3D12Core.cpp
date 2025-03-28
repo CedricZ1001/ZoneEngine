@@ -24,7 +24,7 @@ public:
 		queueDesc.NodeMask = 0;
 		queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 		queueDesc.Type = type;
-
+		
 		DXCall(hr = device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&_cmdQueue)));
 		if (FAILED(hr))
 		{

@@ -16,25 +16,25 @@ public:
 
 #if USE_STL_VECTOR
 	DISABLE_COPY(D3D12Surface);
-	constexpr D3D12Surface(D3D12Surface&& o) : _swapChain{ o._swapChain }, _window{ o._window }, _currentBackBufferIndex{ o._currentBackBufferIndex }, 
-		_viewport{ o._viewport }, _scissorRect{ o._scissorRect }, _allowTearing{ o._allowTearing }, _presentFlags{ o._presentFlags }
+	constexpr D3D12Surface(D3D12Surface&& other) : _swapChain{ other._swapChain }, _window{ other._window }, _currentBackBufferIndex{ other._currentBackBufferIndex },
+		_viewport{ other._viewport }, _scissorRect{ other._scissorRect }, _allowTearing{ other._allowTearing }, _presentFlags{ other._presentFlags }
 	{
 		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
 		{
-			_renderTargetData[i].resource = o._renderTargetData[i].resource;
-			_renderTargetData[i].rtv = o._renderTargetData[i].rtv;
+			_renderTargetData[i].resource = other._renderTargetData[i].resource;
+			_renderTargetData[i].rtv = other._renderTargetData[i].rtv;
 		}
 
-		o.reset();
+		other.reset();
 	}
 
-	constexpr D3D12Surface& operator = (D3D12Surface&& o)
+	constexpr D3D12Surface& operator= (D3D12Surface&& other)
 	{
-		assert(this != &o);
-		if (this != &o)
+		assert(this != &other);
+		if (this != &other)
 		{
 			release();
-			move(o);
+			move(other);
 		}
 		return *this;
 	}
@@ -62,21 +62,21 @@ private:
 	void finalize();
 
 #if USE_STL_VECTOR
-	constexpr void move(D3D12Surface& o)
+	constexpr void move(D3D12Surface& other)
 	{
-		_swapChain = o._swapChain;
+		_swapChain = other._swapChain;
 		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
 		{
-			_renderTargetData[i] = o._renderTargetData[i];
+			_renderTargetData[i] = other._renderTargetData[i];
 		}
-		_window = o._window;
-		_currentBackBufferIndex = o._currentBackBufferIndex;
-		_allowTearing = o._allowTearing;
-		_presentFlags = o._presentFlags;
-		_viewport = o._viewport;
-		_scissorRect = o._scissorRect;
+		_window = other._window;
+		_currentBackBufferIndex = other._currentBackBufferIndex;
+		_allowTearing = other._allowTearing;
+		_presentFlags = other._presentFlags;
+		_viewport = other._viewport;
+		_scissorRect = other._scissorRect;
 
-		o.reset();
+		other.reset();
 	}
 
 	constexpr void reset()
