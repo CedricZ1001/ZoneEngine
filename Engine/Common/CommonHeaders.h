@@ -4,18 +4,6 @@
 #pragma once
 #pragma warning(disable:4530)
 
-//C/C++ Headers
-#include <stdint.h>
-#include <assert.h>
-#include <typeinfo>
-#include <memory>
-#include <unordered_map>
-#include <string>
-#include <mutex>
-
-#ifdef _WIN64
-#include<DirectXMath.h>
-#endif // _Win64
 
 #ifndef DISABLE_COPY
 #define DISABLE_COPY(T)							\
@@ -39,10 +27,23 @@
 #define DEBUG_OP(x)
 #endif
 
+//C/C++ Headers
+#include <stdint.h>
+#include <assert.h>
+#include <typeinfo>
+#include <memory>
+#include <unordered_map>
+#include <string>
+#include <mutex>
+
+#ifdef _WIN64
+#include<DirectXMath.h>
+#endif // _Win64
+
 //Common Headers
 #include "ZoneTypes.h"
-#include "..\Utilities\Math.h"
 #include "..\Utilities\Utilities.h"
+#include "..\Utilities\Math.h"
 #include "..\Utilities\MathTypes.h"
 #include "Id.h"
 

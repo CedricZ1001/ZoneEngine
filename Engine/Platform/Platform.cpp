@@ -17,8 +17,6 @@ struct WindowInfo
 	DWORD	style{ WS_VISIBLE };
 	bool	isFullScreen{ false };
 	bool	isClosed{ false };
-
-	~WindowInfo() { assert(!isFullScreen); }
 };
 
 utl::FreeList<WindowInfo> windows;

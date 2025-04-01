@@ -163,10 +163,12 @@ private:
 	uint32							_frameIndex{ 0 };
 };
 
+using surfaceCollection = utl::FreeList<D3D12Surface>;
+
 ID3D12Device8*				mainDevice{ nullptr };
 IDXGIFactory7*				dxgiFactory{ nullptr };
 D3D12Command				gfxCommand;
-utl::vector<D3D12Surface>	surfaces{};
+surfaceCollection			surfaces{};
 
 DescriptorHeap			rtvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_RTV };
 DescriptorHeap			dsvDescHeap{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV };
@@ -470,8 +472,7 @@ void setDeferredReleasesFlag()
 
 Surface createSurface(platform::Window window)
 {
-	surfaces.emplace_back(window);
-	surface_id id{ static_cast<uint32>(surfaces.size() - 1) };
+	surface_id id{ surfaces.add(window) };
 	surfaces[id].createSwapChain(dxgiFactory, gfxCommand.commandQueue(), renderTargetFormat);
 	return Surface{ id };
 }
@@ -479,7 +480,7 @@ Surface createSurface(platform::Window window)
 void removeSurface(surface_id id)
 {
 	gfxCommand.flush();
-	surfaces[id].~D3D12Surface();
+	surfaces.remove(id);
 }
 
 void resizeSurface(surface_id id, uint32, uint32)

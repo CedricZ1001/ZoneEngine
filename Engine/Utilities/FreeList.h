@@ -5,6 +5,11 @@
 
 namespace zone::utl
 {
+
+#if USE_STL_VECTOR
+#pragma message("WARNING: using utl::FreeList with std::vector result in duplicate calls to class constructor! .")
+#endif
+
 template<typename T>
 class FreeList
 {
@@ -19,6 +24,9 @@ public:
 	~FreeList()
 	{
 		assert(!_size);
+#if USE_STL_VECTOR
+		memset(_array.data(), 0, _array.size() * sizeof(T));
+#endif
 	}
 
 	template<class... params>
@@ -96,9 +104,14 @@ private:
 			return true;
 		}
 	}
-	utl::vector<T>		_array;
-	uint32				_nextFreeIndex{ uint32_invalid_id };
-	uint32				_size{ 0 };
+
+#if USE_STL_VECTOR
+	utl::vector<T>				_array;
+#else
+	utl::vector<T, false>		_array;
+#endif
+	uint32						_nextFreeIndex{ uint32_invalid_id };
+	uint32						_size{ 0 };
 };
 
 } // namespace zone::utl

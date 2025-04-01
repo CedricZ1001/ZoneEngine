@@ -39,7 +39,7 @@ public:
 		return *this;
 	}
 
-#endif
+#endif // USE_STL_VECTOR
 
 	~D3D12Surface() 
 	{ 
@@ -94,7 +94,8 @@ private:
 		_scissorRect = {};
 
 	}
-#endif
+
+#endif// USE_STL_VECTOR
 
 	struct RenderTargetData
 	{

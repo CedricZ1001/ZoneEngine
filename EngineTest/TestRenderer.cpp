@@ -73,6 +73,9 @@ void destroyRenderSurface(graphics::RenderSurface& surface)
 	if (temp.surface.isValid())
 	{
 		graphics::removeSurface(temp.surface.getID());
+	}
+	if (temp.window.isValid())
+	{
 		platform::removeWindow(temp.window.getID());
 	}
 }
