@@ -2,6 +2,7 @@
 // Distributed under the MIT license. See the LICENSE file in the project root for more information.
 #include "D3D12Resources.h"
 #include "D3D12Core.h"
+#include "D3D12Helpers.h"
 
 namespace zone::graphics::d3d12 {
 
@@ -17,7 +18,7 @@ bool DescriptorHeap::initialize(uint32 capacity, bool isShaderVisible)
 
 	release();
 
-	ID3D12Device *const device{ core::getDevice() };
+	auto *const device{ core::getDevice() };
 	assert(device);
 
 	D3D12_DESCRIPTOR_HEAP_DESC desc{};
@@ -116,7 +117,119 @@ void DescriptorHeap::free(DescriptorHandle& handle)
 	_deferredFreeIndices[frameIndex].push_back(index);
 	core::setDeferredReleasesFlag();
 	handle = {};
+}
 
+D3D12Texture::D3D12Texture(D3D12TextureInitInfo info)
+{
+	auto *const device{ core::getDevice() };
+	assert(device);
+
+	D3D12_CLEAR_VALUE *const clearValue
+	{
+		(info.desc && (info.desc->Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET || info.desc->Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)) ? &info.clearValue : nullptr
+	};
+
+	if (info.resource)
+	{
+		assert(!info.heap);
+		_resource = info.resource;
+	}
+	else if (info.heap)
+	{
+		assert(!info.resource);
+		DXCall(device->CreatePlacedResource(info.heap, info.allocationInfo.Offset, info.desc, info.initialState, clearValue, IID_PPV_ARGS(&_resource)));
+	}
+	else
+	{
+		assert(!info.heap && !info.resource);
+		DXCall(device->CreateCommittedResource(&d3dx::HeapProperties.defaultHeap, D3D12_HEAP_FLAG_NONE, info.desc, info.initialState, clearValue, IID_PPV_ARGS(&_resource)));
+	}
+
+	assert(_resource);
+	_srv = core::srvHeap().allocate();
+	device->CreateShaderResourceView(_resource, info.srvDesc, _srv.cpu);
+}
+
+void D3D12Texture::release()
+{
+	core::srvHeap().free(_srv);
+	core::deferredRelease(_resource);
+}
+
+D3D12RenderTexture::D3D12RenderTexture(D3D12TextureInitInfo info)
+	:_texture{ info }
+{
+	assert(info.desc);
+	_mipCount = resource()->GetDesc().MipLevels;
+	assert(_mipCount && _mipCount <= D3D12Texture::maxMips);
+
+	DescriptorHeap& rtvHeap{ core::rtvHeap() };
+	D3D12_RENDER_TARGET_VIEW_DESC desc{};
+	desc.Format = info.desc->Format;
+	desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipSlice = 0;
+
+	auto *const device{ core::getDevice() };
+	assert(device);
+
+	for (uint32 i{ 0 }; i < _mipCount; ++i)
+	{
+		_rtv[i] = rtvHeap.allocate();
+		device->CreateRenderTargetView(resource(), &desc, _rtv[i].cpu);
+		++desc.Texture2D.MipSlice;
+	}
+}
+
+void D3D12RenderTexture::release()
+{
+	for (uint32 i{ 0 }; i < _mipCount; ++i)
+	{
+		core::rtvHeap().free(_rtv[i]);
+	}
+	_texture.release();
+	_mipCount = 0;
+}
+
+D3D12DepthBuffer::D3D12DepthBuffer(D3D12TextureInitInfo info)
+{
+	assert(info.desc);
+	const DXGI_FORMAT dsvFormat{ info.desc->Format };
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	if (info.desc->Format == DXGI_FORMAT_D32_FLOAT)
+	{
+		info.desc->Format = DXGI_FORMAT_R32_TYPELESS;
+		srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	}
+
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	srvDesc.Texture2D.PlaneSlice = 0;
+	srvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+
+	assert(!info.srvDesc && !info.resource);
+	info.srvDesc = &srvDesc;
+	_texture = D3D12Texture(info);
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+	dsvDesc.Format = dsvFormat;
+	dsvDesc.Texture2D.MipSlice = 0;
+
+	_dsv = core::dsvHeap().allocate();
+
+	auto *const device{ core::getDevice() };
+	assert(device);
+	device->CreateDepthStencilView(resource(), &dsvDesc, _dsv.cpu);
+}
+
+void D3D12DepthBuffer::release()
+{
+	core::dsvHeap().free(_dsv);
+	_texture.release();
 }
 
 }

@@ -9,6 +9,7 @@ namespace zone::graphics::d3d12 {
 class D3D12Surface
 {
 public:
+	constexpr static uint32 BUFFER_COUNT{ 3 };
 	explicit D3D12Surface(platform::Window window) : _window{ window } 
 	{
 		assert(_window.handle());
@@ -65,7 +66,7 @@ private:
 	constexpr void move(D3D12Surface& other)
 	{
 		_swapChain = other._swapChain;
-		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+		for (uint32 i{ 0 }; i < BUFFER_COUNT; ++i)
 		{
 			_renderTargetData[i] = other._renderTargetData[i];
 		}
@@ -82,7 +83,7 @@ private:
 	constexpr void reset()
 	{
 		_swapChain = nullptr;
-		for (uint32 i{ 0 }; i < FRAME_BUFFER_COUNT; ++i)
+		for (uint32 i{ 0 }; i < BUFFER_COUNT; ++i)
 		{
 			_renderTargetData[i] = {};
 		}
@@ -104,7 +105,7 @@ private:
 	};
 
 	IDXGISwapChain4*		_swapChain{ nullptr };
-	RenderTargetData		_renderTargetData[FRAME_BUFFER_COUNT]{};
+	RenderTargetData		_renderTargetData[BUFFER_COUNT]{};
 	platform::Window		_window{};
 	mutable uint32			_currentBackBufferIndex{ 0 };
 	uint32					_allowTearing{ 0 };

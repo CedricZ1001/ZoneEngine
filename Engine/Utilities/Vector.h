@@ -101,9 +101,9 @@ public:
 		}
 		assert(_size < _capacity);
 
-		new (std::addressof(_data[_size])) T(std::forward<params>(p)...);
+		T *const item{ new (std::addressof(_data[_size])) T(std::forward<params>(p)...) };
 		++_size;
-		return _data[_size - 1];
+		return *item;
 	}
 
 	// Resizes the vector and initializes new items with their default value.
@@ -126,6 +126,9 @@ public:
 			{
 				destructRange(newSize, _size);
 			}
+			
+			_size = newSize;
+
 		}
 
 		assert(newSize == _size);
@@ -151,6 +154,8 @@ public:
 			{
 				destructRange(newSize, _size);
 			}
+
+			_size = newSize;
 		}
 
 		assert(newSize == _size);
@@ -236,9 +241,9 @@ public:
 	{
 		if (this != std::addressof(other))
 		{
-			auto temp(other);
-			other = *this;
-			*this = temp;
+			auto temp(std::move(other));
+			other.move(*this);
+			move(temp);
 		}
 	}
 

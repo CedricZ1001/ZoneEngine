@@ -16,7 +16,7 @@ struct DescriptorHandle {
 #ifdef _DEBUG
 private:
 	friend class DescriptorHeap;
-	DescriptorHeap*	container{ nullptr };
+	DescriptorHeap*		container{ nullptr };
 	uint32				index{ uint32_invalid_id };
 #endif // _DEBUG
 
@@ -56,6 +56,160 @@ private:
 	uint32								_size{ 0 };
 	uint32								_descriptorSize{ };
 	const D3D12_DESCRIPTOR_HEAP_TYPE	_type{};
+};
+
+struct D3D12TextureInitInfo
+{
+	ID3D12Heap1*						heap{ nullptr };
+	ID3D12Resource*						resource{ nullptr };
+	D3D12_SHADER_RESOURCE_VIEW_DESC*	srvDesc{ nullptr };
+	D3D12_RESOURCE_DESC*				desc{ nullptr };
+	D3D12_RESOURCE_ALLOCATION_INFO1		allocationInfo{};
+	D3D12_RESOURCE_STATES				initialState{ };
+	D3D12_CLEAR_VALUE					clearValue{};
+};
+
+class D3D12Texture
+{
+public:
+	constexpr static uint32 maxMips{ 14 }; // support up to 16k resolutions.
+	D3D12Texture() = default;
+	explicit D3D12Texture(D3D12TextureInitInfo info);
+	DISABLE_COPY(D3D12Texture);
+	constexpr D3D12Texture(D3D12Texture&& other)
+		: _resource{ other._resource }, _srv{ other._srv }
+	{
+		other.reset();
+	}
+
+	constexpr D3D12Texture& operator = (D3D12Texture&& other)
+	{
+		assert(this != &other);
+		if (this != &other)
+		{
+			release();
+			move(other);
+		}
+		return *this;
+	}
+
+	~D3D12Texture() { release(); }
+
+	void release();
+	constexpr ID3D12Resource *const resource() const { return _resource; }
+	constexpr DescriptorHandle srv() const { return _srv; }
+private:
+
+	constexpr void move(D3D12Texture& other)
+	{ 
+		_resource = other._resource;
+		_srv = other._srv;
+		other.reset();
+	}
+
+	constexpr void reset()
+	{
+		_resource = nullptr;
+		_srv = {};
+	}
+
+	ID3D12Resource*		_resource{ nullptr };
+	DescriptorHandle	_srv;
+};
+
+class D3D12RenderTexture
+{
+public:
+	D3D12RenderTexture() = default;
+	explicit D3D12RenderTexture(D3D12TextureInitInfo info);
+	DISABLE_COPY(D3D12RenderTexture);
+	constexpr D3D12RenderTexture(D3D12RenderTexture&& other)
+		:_texture{ std::move(other._texture) }, _mipCount{ other._mipCount }
+	{
+		for (uint32 i{ 0 }; i < _mipCount; ++i)
+		{
+			_rtv[i] = other._rtv[i];
+		}
+		other.reset();
+	}
+	constexpr D3D12RenderTexture& operator=(D3D12RenderTexture&& other)
+	{
+		assert(this != &other);
+		if (this != &other)
+		{
+			release();
+			move(other);
+		}
+		return *this; 
+	}
+
+	~D3D12RenderTexture() { release(); }
+
+	void release();
+	constexpr uint32 mipCount() const { return _mipCount; }
+	constexpr D3D12_CPU_DESCRIPTOR_HANDLE rtv(uint32 mipIndex) const { assert(mipIndex < _mipCount); return _rtv[mipIndex].cpu; }
+	constexpr DescriptorHandle srv() const { return _texture.srv(); }
+	constexpr ID3D12Resource *const resource()	const { return _texture.resource(); }
+
+private:
+	constexpr void move(D3D12RenderTexture& other)
+	{
+		_texture = std::move(other._texture);
+		_mipCount = other._mipCount;
+		for (uint32 i{ 0 }; i < _mipCount; ++i)
+		{
+			_rtv[i] = other._rtv[i];
+		}
+		other.reset();
+	}
+
+	constexpr void reset()
+	{
+		for (uint32 i{0}; i<_mipCount;++i)
+		{
+			_rtv[i] = {};
+		}
+		_mipCount = 0;
+	}
+
+	D3D12Texture			_texture{};
+	DescriptorHandle		_rtv[D3D12Texture::maxMips]{};
+	uint32					_mipCount{ 0 };
+};
+
+class D3D12DepthBuffer
+{
+public:
+	D3D12DepthBuffer() = default;
+	explicit D3D12DepthBuffer(D3D12TextureInitInfo info);
+	DISABLE_COPY(D3D12DepthBuffer);
+	constexpr D3D12DepthBuffer(D3D12DepthBuffer&& other)
+		:_texture{ std::move(other._texture) }, _dsv{ other._dsv }
+	{
+		other._dsv = {};
+	}
+
+	constexpr D3D12DepthBuffer& operator=(D3D12DepthBuffer&& other)
+	{
+		assert(this != &other);
+		if (this != &other)
+		{
+			_texture = std::move(other._texture);
+			_dsv = other._dsv;
+			other._dsv = {};
+		}
+		return *this;
+	}
+
+	~D3D12DepthBuffer() { release(); }
+
+	void release();
+	constexpr D3D12_CPU_DESCRIPTOR_HANDLE dsv() const {  return _dsv.cpu; }
+	constexpr DescriptorHandle srv() const { return _texture.srv(); }
+	constexpr ID3D12Resource *const resource()	const { return _texture.resource(); }
+private:
+	D3D12Texture			_texture{};
+	DescriptorHandle		_dsv{};
 };
 
 }
