@@ -3,10 +3,14 @@
 #include "D3D12Core.h"
 #include "D3D12Resources.h"
 #include "D3D12Surface.h"
+#include "D3D12Helpers.h"
 
 using namespace Microsoft::WRL;
 
 namespace zone::graphics::d3d12::core {
+// TODO: remove when you're done showing how to create a root signature the tedious way
+void createARootSignatue();
+void createARootSignature2();
 namespace {
 
 class D3D12Command
@@ -389,6 +393,9 @@ bool initialize()
 	NAME_D3D12_OBJECT(srvDescHeap.heap(), L"SRV Descriptor Heap");
 	NAME_D3D12_OBJECT(uavDescHeap.heap(), L"UAV Descriptor Heap");
 
+
+	// TODO: remove.
+	createARootSignatue();
 	return true;
 }
 
@@ -517,5 +524,105 @@ void renderSurface(surface_id id)
 	gfxCommand.endFrame();
 }
 
+void createARootSignatue()
+{
+	D3D12_ROOT_PARAMETER1 params[3];
+	{// param 0: 2 constants
+		auto& param{ params[0] };
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		D3D12_ROOT_CONSTANTS rootConstants{};
+		rootConstants.Num32BitValues = 2;
+		rootConstants.ShaderRegister = 0; // b0
+		rootConstants.RegisterSpace = 0;
+		param.Constants = rootConstants;
+		param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	}
+	{// param 1: 1 Constant Buffer View (Descriptor)
+		auto& param = params[1];
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		D3D12_ROOT_DESCRIPTOR1 rootDescriptor{};
+		rootDescriptor.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_NONE;
+		rootDescriptor.ShaderRegister = 1;
+		rootDescriptor.RegisterSpace = 0;
+		param.Descriptor = rootDescriptor;
+		param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	}
+	{// param 2: descriptor table (unbounded/bindless)
+		auto& param = params[2];
+		param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		D3D12_ROOT_DESCRIPTOR_TABLE1 rootDescriptorTable{};
+		rootDescriptorTable.NumDescriptorRanges = 1;
+		D3D12_DESCRIPTOR_RANGE1 descriptorRange{};
+		descriptorRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		descriptorRange.NumDescriptors = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		descriptorRange.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE;
+		descriptorRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		descriptorRange.BaseShaderRegister = 0;
+		descriptorRange.RegisterSpace = 0;
+		descriptorRange.RegisterSpace = 0;
+		rootDescriptorTable.pDescriptorRanges = &descriptorRange;
+		param.DescriptorTable = rootDescriptorTable;
+		param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	}
+
+	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+	D3D12_ROOT_SIGNATURE_DESC1 desc{};
+	desc.Flags =
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS |
+		D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
+	desc.NumParameters = _countof(params);
+	desc.pParameters = &params[0];
+	desc.NumStaticSamplers = 1;
+	desc.pStaticSamplers = &samplerDesc;
+
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.Version = D3D_ROOT_SIGNATURE_VERSION_1_1;
+	rootSignatureDesc.Desc_1_1 = desc;
+
+	HRESULT hr{ S_OK };
+	ID3D10Blob* rootSignatureBlob{ nullptr };
+	ID3D10Blob* errorBlob{ nullptr };
+	if (FAILED(hr = D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &rootSignatureBlob, &errorBlob)))
+	{
+		DEBUG_OP(const char* errorMessage{ errorBlob ? (const char*)errorBlob->GetBufferPointer() : "" });
+		DEBUG_OP(OutputDebugStringA(errorMessage););
+		return;
+	}
+
+	assert(rootSignatureBlob);
+	ID3D12RootSignature* rootSignature{ nullptr };
+	DXCall(hr = getDevice()->CreateRootSignature(0, rootSignatureBlob->GetBufferPointer(), rootSignatureBlob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+
+	release(rootSignatureBlob);
+	release(errorBlob);
+
+	// use rootSignature
+	// when renderer shuts down
+	release(rootSignature);
+}
+
+void createARootSignature2()
+{
+	d3dx::D3D12DescriptorRange range{ D3D12_DESCRIPTOR_RANGE_TYPE_SRV, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND, 0 };
+	d3dx::D3D12RootParameter params[3];
+	params[0].asConstants(2, D3D12_SHADER_VISIBILITY_PIXEL, 0);
+	params[1].asCBV(D3D12_SHADER_VISIBILITY_PIXEL, 1);
+	params[2].asDescriptorTable(D3D12_SHADER_VISIBILITY_PIXEL, &range, 1);
+
+	d3dx::D3D12RootSignatureDesc rootSignatureDesc{ &params[0], _countof(params) };
+	ID3D12RootSignature* rootSignature{ rootSignatureDesc.create() };
+
+	// use rootSignature
+	// when renderer shuts down
+	release(rootSignature);
+}
 
 }
